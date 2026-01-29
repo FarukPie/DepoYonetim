@@ -1,0 +1,6 @@
+@DepoYonetim.WebAPI_HostAddress = http://localhost:5108
+
+GET {{DepoYonetim.WebAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
