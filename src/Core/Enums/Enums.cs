@@ -31,5 +31,6 @@ public enum UrunDurum
     Aktif,
     Bakimda,
     TamirBekliyor,
-    Hurda
+    Hurda,
+    Zimmetli
 }

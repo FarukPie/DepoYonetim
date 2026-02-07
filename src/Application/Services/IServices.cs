@@ -31,6 +31,7 @@ public interface IKategoriService
     Task<KategoriDto> CreateAsync(KategoriCreateDto dto);
     Task UpdateAsync(int id, KategoriCreateDto dto);
     Task DeleteAsync(int id);
+    Task<IEnumerable<CategoryDto>> GetCategoryTreeAsync();
 }
 
 public interface IPersonelService
@@ -61,6 +62,7 @@ public interface IFaturaService
     Task<FaturaDto?> GetByIdAsync(int id);
     Task<FaturaDto> CreateAsync(FaturaCreateDto dto);
     Task DeleteAsync(int id);
+    Task<FaturaCreateDto> CreateFromPdfAsync(Stream pdfStream);
 }
 
 public interface IZimmetService
@@ -69,6 +71,8 @@ public interface IZimmetService
     Task<IEnumerable<ZimmetDto>> GetSonZimmetlerAsync(int count);
     Task<ZimmetDto?> GetByIdAsync(int id);
     Task<ZimmetDto> CreateAsync(ZimmetCreateDto dto);
+    Task UpdateAsync(int id, ZimmetUpdateDto dto);
+    Task DeleteAsync(int id);
     Task IadeEtAsync(int id);
 }
 
@@ -85,5 +89,16 @@ public interface ITalepService
     Task<TalepDto> CreateAsync(CreateTalepDto dto);
     Task<TalepDto> OnaylaAsync(int id, int onaylayanUserId);
     Task<TalepDto> ReddetAsync(int id, int onaylayanUserId, string redNedeni);
+    Task DeleteAsync(int id);
     Task<int> GetBekleyenSayisiAsync();
+}
+
+public interface IBolumService
+{
+    Task<IEnumerable<BolumDto>> GetAllAsync();
+    Task<IEnumerable<BolumDto>> GetTreeAsync();
+    Task<BolumDto?> GetByIdAsync(int id);
+    Task<BolumDto> CreateAsync(BolumCreateDto dto);
+    Task UpdateAsync(int id, BolumCreateDto dto);
+    Task DeleteAsync(int id);
 }

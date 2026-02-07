@@ -128,21 +128,13 @@ export default function RolYonetimi() {
 
     return (
         <>
-            <header className="page-header">
-                <div>
-                    <h1>
-                        <Shield size={28} style={{ marginRight: '12px', verticalAlign: 'middle' }} />
-                        Rol Yönetimi
-                    </h1>
-                    <p>Sistem rollerini ve yetkilerini yönetin</p>
-                </div>
-                <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-                    <Plus size={18} />
-                    <span>Yeni Rol</span>
-                </button>
-            </header>
-
             <div className="page-content">
+                <div className="toolbar" style={{ justifyContent: 'flex-end' }}>
+                    <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+                        <Plus size={18} />
+                        <span>Rol Ekle</span>
+                    </button>
+                </div>
                 {/* Roles Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: 'var(--spacing-lg)' }}>
                     {roles.map((role) => (
@@ -156,17 +148,14 @@ export default function RolYonetimi() {
                                 </div>
                                 <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
                                     <button
-                                        className="btn btn-outline"
+                                        className="btn btn-icon btn-secondary"
                                         onClick={() => handleEdit(role)}
-                                        title="Düzenle"
                                     >
                                         <Edit2 size={16} />
                                     </button>
                                     <button
-                                        className="btn btn-outline"
+                                        className="btn btn-icon btn-danger"
                                         onClick={() => handleDelete(role.id)}
-                                        title="Sil"
-                                        style={{ color: 'var(--accent-error)' }}
                                     >
                                         <Trash2 size={16} />
                                     </button>
@@ -210,27 +199,25 @@ export default function RolYonetimi() {
                 <div className="modal-overlay" onClick={closeModal}>
                     <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
                         <div className="modal-header">
-                            <h2>{editingRole ? 'Rol Düzenle' : 'Yeni Rol'}</h2>
-                            <button className="btn btn-outline" onClick={closeModal}>
-                                <X size={18} />
-                            </button>
+                            <h2>{editingRole ? 'Rol Düzenle' : 'Rol Ekle'}</h2>
+                            <button className="modal-close" onClick={closeModal}><X size={20} /></button>
                         </div>
                         <form onSubmit={handleSubmit}>
                             <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                                 <div className="form-group">
-                                    <label className="form-label">Rol Adı *</label>
                                     <input
                                         type="text"
                                         className="form-input"
+                                        placeholder="Rol Adı *"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         required
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Açıklama</label>
                                     <textarea
-                                        className="form-input"
+                                        className="form-textarea"
+                                        placeholder="Açıklama"
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                         rows={2}

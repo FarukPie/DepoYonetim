@@ -1,3 +1,4 @@
+using DepoYonetim.Application.Services;
 using DepoYonetim.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,6 +8,13 @@ namespace DepoYonetim.WebAPI.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
+    private readonly ISystemLogService _logService;
+
+    public AuthController(ISystemLogService logService)
+    {
+        _logService = logService;
+    }
+
     public record LoginRequest(string Username, string Password);
     public record LoginResponse(
         bool Success, 
@@ -26,7 +34,7 @@ public class AuthController : ControllerBase
     );
 
     [HttpPost("login")]
-    public ActionResult<LoginResponse> Login([FromBody] LoginRequest request)
+    public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
     {
         var user = MockData.Users.FirstOrDefault(u => 
             u.Username == request.Username && 
@@ -52,17 +60,10 @@ public class AuthController : ControllerBase
         var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
 
         // Log the login
-        var log = new Core.Entities.SystemLog
-        {
-            Id = MockData.SystemLogs.Count > 0 ? MockData.SystemLogs.Max(l => l.Id) + 1 : 1,
-            UserId = user.Id,
-            UserName = user.FullName,
-            Action = "Login",
-            EntityType = "User",
-            Details = "Sisteme giriş yapıldı",
-            Timestamp = DateTime.Now
-        };
-        MockData.SystemLogs.Add(log);
+        await _logService.LogAsync(
+            "Login", "User", user.Id, 
+            "Sisteme giriş yapıldı", 
+            user.Id, user.FullName, null);
 
         var userInfo = new UserInfo(
             user.Id,
@@ -79,8 +80,19 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("logout")]
-    public ActionResult Logout()
+    public async Task<ActionResult> Logout([FromHeader(Name = "X-User-Id")] int? userId)
     {
+        if (userId.HasValue)
+        {
+             var user = MockData.Users.FirstOrDefault(u => u.Id == userId);
+             if (user != null)
+             {
+                 await _logService.LogAsync(
+                    "Logout", "User", user.Id, 
+                    "Sistemden çıkış yapıldı", 
+                    user.Id, user.FullName, null);
+             }
+        }
         return Ok(new { Success = true, Message = "Çıkış başarılı" });
     }
 

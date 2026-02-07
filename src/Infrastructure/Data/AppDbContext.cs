@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Role> Roles { get; set; }
     public DbSet<SystemLog> SystemLogs { get; set; }
+    public DbSet<Bolum> Bolumler { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

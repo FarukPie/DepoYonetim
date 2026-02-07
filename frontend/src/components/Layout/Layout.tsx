@@ -2,11 +2,12 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, Warehouse, Package, FileText, Users,
     FolderTree, UserCog, LogOut, ChevronDown, Menu, X,
-    ClipboardList, Shield, FileCheck, Activity, PlusCircle
+    ClipboardList, Shield, FileCheck, Activity, PlusCircle,
+    PanelLeftClose, PanelLeftOpen, Info
 } from 'lucide-react';
 import { ReactNode, useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { taleplerService } from '../../services/mockData';
+import { taleplerService } from '../../services/api';
 
 interface LayoutProps {
     children: ReactNode;
@@ -19,19 +20,46 @@ interface NavItem {
     pageKey?: string;
     children?: { path: string; label: string; pageKey: string }[];
     badge?: number;
+    description?: string;
 }
 
 export default function Layout({ children }: LayoutProps) {
     const location = useLocation();
     const { user, logout, hasPagePermission, isAdmin } = useAuth();
-    const [expandedMenu, setExpandedMenu] = useState<string | null>('Depo');
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [expandedMenu, setExpandedMenu] = useState<string | null>(() => {
+        // Initial state: Expand 'Tanımlar' if we are currently on one of its pages
+        const path = location.pathname;
+        if (['/cariler', '/urunler', '/kategoriler', '/zimmetler', '/faturalar'].some(p => path.startsWith(p))) {
+            return 'Tanımlar';
+        }
+        return null;
+    });
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [bekleyenTalepSayisi, setBekleyenTalepSayisi] = useState(0);
 
+    // Auto-collapse 'Tanımlar' menu when navigating outside of it
     useEffect(() => {
-        if (isAdmin) {
-            setBekleyenTalepSayisi(taleplerService.getBekleyenSayisi());
+        const path = location.pathname;
+        const isTanimlarPage = ['/cariler', '/urunler', '/kategoriler', '/zimmetler', '/faturalar'].some(p => path.startsWith(p));
+
+        if (expandedMenu === 'Tanımlar' && !isTanimlarPage) {
+            setExpandedMenu(null);
         }
+    }, [location.pathname]);
+
+    useEffect(() => {
+        const loadBekleyenSayisi = async () => {
+            if (isAdmin) {
+                try {
+                    const sayisi = await taleplerService.getBekleyenSayisi();
+                    setBekleyenTalepSayisi(sayisi);
+                } catch (error) {
+                    console.error('Bekleyen talep sayısı alınamadı:', error);
+                }
+            }
+        };
+        loadBekleyenSayisi();
     }, [isAdmin, location.pathname]);
 
     // Close mobile menu on route change
@@ -60,33 +88,34 @@ export default function Layout({ children }: LayoutProps) {
 
     // Main navigation items
     const mainNavItems: NavItem[] = [
-        { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', pageKey: 'dashboard' },
+        { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', pageKey: 'dashboard', description: 'Genel durum ve istatistikler' },
         {
-            label: 'Depo',
+            label: 'Tanımlar',
             icon: Warehouse,
+            description: 'Sistem tanımları ve yönetimi',
             children: [
-                { path: '/depolar', label: 'Depolar', pageKey: 'depolar' },
-                { path: '/urunler', label: 'Ürünler', pageKey: 'urunler' },
+                { path: '/cariler', label: 'Cari', pageKey: 'cariler' },
+                { path: '/kategoriler', label: 'Kategori', pageKey: 'kategoriler' },
+                { path: '/urunler', label: 'Malzeme', pageKey: 'urunler' },
+                { path: '/faturalar', label: 'Fatura', pageKey: 'faturalar' },
+                { path: '/zimmetler', label: 'Zimmet', pageKey: 'zimmetler' },
             ]
         },
-        { path: '/faturalar', icon: FileText, label: 'Faturalar', pageKey: 'faturalar' },
-        { path: '/cariler', icon: Users, label: 'Cariler', pageKey: 'cariler' },
-        { path: '/kategoriler', icon: FolderTree, label: 'Kategoriler', pageKey: 'kategoriler' },
-        { path: '/personeller', icon: UserCog, label: 'Personeller', pageKey: 'personeller' },
-        { path: '/zimmetler', icon: ClipboardList, label: 'Zimmetler', pageKey: 'zimmetler' },
+        { path: '/personeller', icon: UserCog, label: 'Personel', pageKey: 'personeller', description: 'Personel listesi ve yönetimi' },
+        { path: '/bolumler', icon: FolderTree, label: 'Odalar / Bölümler', pageKey: 'bolumler', description: 'Kat ve oda yerleşimi yönetimi' },
     ];
 
     // Admin navigation items
     const adminNavItems: NavItem[] = [
-        { path: '/kullanicilar', icon: Users, label: 'Kullanıcılar', pageKey: 'kullanicilar' },
-        { path: '/roller', icon: Shield, label: 'Rol Yönetimi', pageKey: 'roller' },
-        { path: '/talepler', icon: FileCheck, label: 'Talepler', pageKey: 'talepler', badge: bekleyenTalepSayisi },
-        { path: '/loglar', icon: Activity, label: 'Loglar', pageKey: 'loglar' },
+        { path: '/kullanicilar', icon: Users, label: 'Kullanıcılar', pageKey: 'kullanicilar', description: 'Sistem kullanıcılarını yönet' },
+        { path: '/roller', icon: Shield, label: 'Rol Yönetimi', pageKey: 'roller', description: 'Kullanıcı rolleri ve yetkileri' },
+        { path: '/talepler', icon: FileCheck, label: 'Talepler', pageKey: 'talepler', badge: bekleyenTalepSayisi, description: 'Kullanıcı taleplerini onayla/reddet' },
+        { path: '/loglar', icon: Activity, label: 'Sistem Kayıt', pageKey: 'loglar', description: 'Sistem işlem geçmişini görüntüle' },
     ];
 
     // User navigation items
     const userNavItems: NavItem[] = [
-        { path: '/talep-olustur', icon: PlusCircle, label: 'Talep Oluştur', pageKey: 'talep-olustur' },
+        { path: '/talep-olustur', icon: PlusCircle, label: 'Talep Oluştur', pageKey: 'talep-olustur', description: 'Yeni bir talep oluştur' },
     ];
 
     const filterNavItems = (items: NavItem[]): NavItem[] => {
@@ -113,22 +142,34 @@ export default function Layout({ children }: LayoutProps) {
 
     const renderNavItem = (item: NavItem) => {
         if (item.children) {
+            // Parent is active if current path matches any child path
+            const isParentActive = item.children.some(child =>
+                location.pathname === child.path || location.pathname.startsWith(`${child.path}/`)
+            );
+
             return (
                 <div key={item.label}>
                     <div
-                        className={`nav-item ${expandedMenu === item.label ? 'active' : ''}`}
+                        className={`nav-item ${isParentActive ? 'active' : ''}`}
                         onClick={() => toggleMenu(item.label)}
                         style={{ cursor: 'pointer' }}
                     >
                         <item.icon />
                         <span>{item.label}</span>
-                        <ChevronDown
-                            style={{
-                                marginLeft: 'auto',
-                                transform: expandedMenu === item.label ? 'rotate(180deg)' : 'none',
-                                transition: 'transform 0.2s ease'
-                            }}
-                        />
+
+                        <div
+                            style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            onClick={(e) => e.stopPropagation()}
+                            title={item.description}
+                        >
+                            {!isCollapsed && <Info size={16} className="text-muted" style={{ opacity: 0.7 }} />}
+                            <ChevronDown
+                                style={{
+                                    transform: expandedMenu === item.label ? 'rotate(180deg)' : 'none',
+                                    transition: 'transform 0.2s ease'
+                                }}
+                            />
+                        </div>
                     </div>
                     {expandedMenu === item.label && (
                         <div style={{ paddingLeft: '1rem' }}>
@@ -155,11 +196,18 @@ export default function Layout({ children }: LayoutProps) {
             >
                 <item.icon />
                 <span>{item.label}</span>
-                {item.badge && item.badge > 0 && (
-                    <span className="badge badge-warning" style={{ marginLeft: 'auto', fontSize: '0.7rem', padding: '2px 6px' }}>
-                        {item.badge}
-                    </span>
-                )}
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {item.badge && item.badge > 0 && (
+                        <span className="badge" style={{ fontSize: '0.75rem', padding: '2px 8px', backgroundColor: 'var(--accent-error)', color: 'white', border: '1px solid var(--accent-error)' }}>
+                            {item.badge}
+                        </span>
+                    )}
+                    {!isCollapsed && (
+                        <div title={item.description} style={{ display: 'flex', alignItems: 'center' }}>
+                            <Info size={16} style={{ opacity: 0.7 }} />
+                        </div>
+                    )}
+                </div>
             </NavLink>
         );
     };
@@ -178,19 +226,30 @@ export default function Layout({ children }: LayoutProps) {
             />
 
             {/* Sidebar */}
-            <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="sidebar-header">
-                    <img src="/logo.png" alt="Can Sağlık Grubu" className="sidebar-logo-img" />
-                    <div className="sidebar-title">
-                        <h1>Can Hastanesi</h1>
-                        <span>Envanter Yönetim Sistemi</span>
-                    </div>
+            <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
+                <div style={{
+                    padding: 'var(--spacing-md)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    borderBottom: '1px solid var(--border-primary)',
+                    marginBottom: 'var(--spacing-sm)'
+                }}>
+                    <img
+                        src="/sidebar-logo.png"
+                        alt="Can Hastanesi"
+                        style={{
+                            maxWidth: isCollapsed ? '40px' : '100%',
+                            maxHeight: '50px',
+                            objectFit: 'contain',
+                            transition: 'all 0.3s ease'
+                        }}
+                    />
                 </div>
 
                 <nav className="sidebar-nav">
                     {/* Main Menu */}
                     <div className="nav-section">
-                        <div className="nav-section-title">Ana Menü</div>
                         {filteredMainItems.map(renderNavItem)}
                     </div>
 
@@ -212,25 +271,61 @@ export default function Layout({ children }: LayoutProps) {
                 </nav>
 
                 {/* User Info & Logout */}
-                <div style={{ padding: 'var(--spacing-md)', borderTop: '1px solid var(--border-primary)' }}>
-                    {user && (
-                        <div style={{ marginBottom: 'var(--spacing-sm)', padding: '0 var(--spacing-sm)' }}>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                                {user.fullName}
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <div style={{
+                    padding: 'var(--spacing-md)',
+                    borderTop: '1px solid var(--border-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: isCollapsed ? 'center' : 'space-between',
+                    flexDirection: isCollapsed ? 'column' : 'row',
+                    gap: isCollapsed ? 'var(--spacing-md)' : '0'
+                }}>
+                    {/* Toggle Button (Moved here) */}
+                    <button
+                        className="btn-icon"
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        style={{
+                            color: 'var(--text-muted)',
+                            background: 'transparent',
+                            flexShrink: 0,
+                            order: isCollapsed ? -1 : 0
+                        }}
+                    >
+                        {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+                    </button>
+
+                    {user && !isCollapsed && (
+                        <div style={{ paddingLeft: 'var(--spacing-sm)', flex: 1, overflow: 'hidden' }}>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {user.roleName}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {user.fullName}
                             </div>
                         </div>
                     )}
-                    <button className="nav-item" onClick={logout} style={{ width: '100%', background: 'none', border: 'none' }}>
-                        <LogOut />
-                        <span>Çıkış Yap</span>
+
+                    <button
+                        onClick={logout}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--text-muted)',
+                            padding: 'var(--spacing-xs)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}
+                        title="Çıkış Yap"
+                    >
+                        <LogOut size={20} />
                     </button>
                 </div>
             </aside>
 
-            <main className="main-content">
+            <main className="main-content" style={{ marginLeft: isCollapsed ? 'var(--sidebar-width-collapsed)' : 'var(--sidebar-width)' }}>
+
                 {children}
             </main>
         </div>

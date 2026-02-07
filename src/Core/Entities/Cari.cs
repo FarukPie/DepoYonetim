@@ -6,6 +6,7 @@ public class Cari : BaseEntity
 {
     public string FirmaAdi { get; set; } = string.Empty;
     public CariTipi Tip { get; set; } = CariTipi.Tedarikci;
+    public string? TicaretSicilNo { get; set; }
     public string? VergiNo { get; set; }
     public string? VergiDairesi { get; set; }
     public string? Adres { get; set; }

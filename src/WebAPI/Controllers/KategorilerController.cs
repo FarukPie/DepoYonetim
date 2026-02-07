@@ -34,6 +34,13 @@ public class KategorilerController : ControllerBase
         return Ok(kategoriler);
     }
 
+    [HttpGet("tree")]
+    public async Task<ActionResult<IEnumerable<CategoryDto>>> GetTree()
+    {
+        var tree = await _kategoriService.GetCategoryTreeAsync();
+        return Ok(tree);
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<KategoriDto>> GetById(int id)
     {

@@ -8,11 +8,24 @@ namespace DepoYonetim.Application.Services;
 public class ZimmetService : IZimmetService
 {
     private readonly IZimmetRepository _zimmetRepository;
+    private readonly IUrunRepository _urunRepository;
+    private readonly ISystemLogService _logService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ZimmetService(IZimmetRepository zimmetRepository)
+    public ZimmetService(
+        IZimmetRepository zimmetRepository,
+        IUrunRepository urunRepository,
+        ISystemLogService logService,
+        ICurrentUserService currentUserService)
     {
         _zimmetRepository = zimmetRepository;
+        _urunRepository = urunRepository;
+        _logService = logService;
+        _currentUserService = currentUserService;
     }
+    
+    private int? CurrentUserId => _currentUserService.UserId;
+    private string CurrentUserName => _currentUserService.UserName;
 
     private ZimmetDto MapToDto(Zimmet z)
     {
@@ -58,8 +71,23 @@ public class ZimmetService : IZimmetService
             Durum = ZimmetDurum.Aktif
         };
 
-        await _zimmetRepository.AddAsync(entity);
-        return MapToDto(entity);
+        var created = await _zimmetRepository.AddAsync(entity);
+
+        // Update Product Status to Zimmetli
+        var urun = await _urunRepository.GetByIdAsync(dto.UrunId);
+        if (urun != null)
+        {
+            urun.Durum = UrunDurum.Zimmetli;
+            await _urunRepository.UpdateAsync(urun);
+        }
+        
+        // Retrieve full entity for logging details if possible, but basic info is enough
+        await _logService.LogAsync(
+             "Create", "Zimmet", created.Id, 
+             $"Zimmet oluşturuldu. Ürün ID: {dto.UrunId}, Personel ID: {dto.PersonelId}", 
+             CurrentUserId, CurrentUserName, null);
+        
+        return await GetByIdAsync(created.Id) ?? MapToDto(created);
     }
 
     public async Task IadeEtAsync(int id)
@@ -71,5 +99,63 @@ public class ZimmetService : IZimmetService
         z.IadeTarihi = DateTime.Now;
 
         await _zimmetRepository.UpdateAsync(z);
+
+        // Update Product Status to Aktif (Free)
+        var urun = await _urunRepository.GetByIdAsync(z.UrunId);
+        if (urun != null)
+        {
+            urun.Durum = UrunDurum.Aktif;
+            await _urunRepository.UpdateAsync(urun);
+        }
+        
+        await _logService.LogAsync(
+             "Update", "Zimmet", z.Id, 
+             $"Zimmet iade edildi. ID: {id}", 
+             CurrentUserId, CurrentUserName, null);
+    }
+
+    public async Task UpdateAsync(int id, ZimmetUpdateDto dto)
+    {
+        var z = await _zimmetRepository.GetByIdAsync(id);
+        if (z == null) return;
+
+        z.UrunId = dto.UrunId;
+        z.PersonelId = dto.PersonelId;
+        z.ZimmetTarihi = dto.ZimmetTarihi;
+        z.Aciklama = dto.Aciklama;
+        
+        // Parse Durum string to enum
+        if (Enum.TryParse<ZimmetDurum>(dto.Durum, out var durum))
+        {
+            z.Durum = durum;
+        }
+
+        await _zimmetRepository.UpdateAsync(z);
+        
+        await _logService.LogAsync(
+             "Update", "Zimmet", z.Id, 
+             $"Zimmet güncellendi. ID: {id}", 
+             CurrentUserId, CurrentUserName, null);
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        var z = await _zimmetRepository.GetByIdAsync(id);
+        if (z == null) return;
+
+        await _zimmetRepository.DeleteAsync(id);
+
+        // Update Product Status to Aktif (Free)
+        var urun = await _urunRepository.GetByIdAsync(z.UrunId);
+        if (urun != null)
+        {
+            urun.Durum = UrunDurum.Aktif;
+            await _urunRepository.UpdateAsync(urun);
+        }
+        
+        await _logService.LogAsync(
+             "Delete", "Zimmet", id, 
+             $"Zimmet silindi. ID: {id}", 
+             CurrentUserId, CurrentUserName, null);
     }
 }

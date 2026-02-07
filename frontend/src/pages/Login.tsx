@@ -28,9 +28,9 @@ export default function Login() {
     return (
         <div className="login-page">
             <div className="login-card">
-                <img src="/logo.png" alt="Can Sağlık Grubu" className="login-logo-img" />
+                <img src="/sidebar-logo.png" alt="Can Sağlık Grubu" className="login-logo-img" />
                 <div className="login-title">
-                    <h1>Can Sağlık Grubu</h1>
+
                     <p>Envanter Yönetim Sistemi</p>
                 </div>
 
@@ -38,7 +38,6 @@ export default function Login() {
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label className="form-label">Kullanıcı Adı</label>
                         <div style={{ position: 'relative' }}>
                             <User style={{
                                 position: 'absolute',
@@ -52,7 +51,7 @@ export default function Login() {
                             <input
                                 type="text"
                                 className="form-input"
-                                placeholder="Kullanıcı adı"
+                                placeholder="Kullanıcı Adı"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 style={{ paddingLeft: '40px' }}
@@ -62,7 +61,6 @@ export default function Login() {
                     </div>
 
                     <div className="form-group">
-                        <label className="form-label">Şifre</label>
                         <div style={{ position: 'relative' }}>
                             <Lock style={{
                                 position: 'absolute',
@@ -96,7 +94,7 @@ export default function Login() {
                 </form>
 
                 <div style={{
-                    textAlign: 'center',
+                    textAlign: 'left',
                     marginTop: 'var(--spacing-lg)',
                     fontSize: '0.75rem',
                     color: 'var(--text-muted)',
@@ -105,7 +103,7 @@ export default function Login() {
                     borderRadius: 'var(--radius-sm)'
                 }}>
                     <p style={{ margin: '0 0 4px', fontWeight: 600 }}>Demo Hesaplar:</p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
                         <div>
                             <strong>Admin:</strong> admin / admin123
                         </div>

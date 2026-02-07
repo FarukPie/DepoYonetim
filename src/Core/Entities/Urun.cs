@@ -5,6 +5,9 @@ namespace DepoYonetim.Core.Entities;
 public class Urun : BaseEntity
 {
     public string Ad { get; set; } = string.Empty;
+    public string? Marka { get; set; }
+    public string? Model { get; set; }
+    public string? SeriNumarasi { get; set; }
     public string? Barkod { get; set; }
     public int KategoriId { get; set; }
     public int? DepoId { get; set; }
@@ -14,6 +17,11 @@ public class Urun : BaseEntity
     public decimal KdvOrani { get; set; } = 18;
     public int GarantiSuresiAy { get; set; } = 12;
     public BakimTipi BozuldugundaBakimTipi { get; set; } = BakimTipi.Bakim;
+    
+    // Kalibrasyon/Bakım Takibi
+    public DateTime? SonBakimTarihi { get; set; }
+    public int? KalibrasyonPeriyoduGun { get; set; }
+
     public int StokMiktari { get; set; } = 0;
     public UrunDurum Durum { get; set; } = UrunDurum.Aktif;
 

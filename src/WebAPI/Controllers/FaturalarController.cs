@@ -58,4 +58,16 @@ public class FaturalarController : ControllerBase
         await _faturaService.DeleteAsync(id);
         return NoContent();
     }
+    [HttpPost("upload-pdf")]
+    public async Task<ActionResult<FaturaCreateDto>> UploadPdf(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("Dosya yüklenmedi.");
+
+        // Additional validation can be added here (e.g., file size)
+
+        using var stream = file.OpenReadStream();
+        var result = await _faturaService.CreateFromPdfAsync(stream);
+        return Ok(result);
+    }
 }

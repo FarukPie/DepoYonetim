@@ -1,0 +1,6 @@
+﻿
+> frontend@0.0.0 build
+> tsc && vite build
+
+src/pages/Cariler.tsx(69,21): error TS18046: 'error' is of type 'unknown'.
+src/pages/Cariler.tsx(70,38): error TS18046: 'error' is of type 'unknown'.

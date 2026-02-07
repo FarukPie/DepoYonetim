@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Plus, X, Search, FileText, Trash2, Filter } from 'lucide-react';
-import { faturaService, cariService, urunService } from '../services/api';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Trash2, Plus, Download, Filter, Search, X, Package, ChevronDown, ChevronUp, Edit, Upload, FileText } from 'lucide-react';
+import { faturaService, cariService, urunService, kategoriService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Fatura, Cari, Urun, FaturaKalemiCreate } from '../types';
+import { Fatura, Cari, Urun, FaturaKalemiCreate, Kategori } from '../types';
+import { DataTable, Column } from '../components/shared/DataTable';
+import CariModal from '../components/shared/CariModal';
 
 export default function Faturalar() {
     const { hasEntityPermission } = useAuth();
@@ -14,12 +16,28 @@ export default function Faturalar() {
     const [filterCari, setFilterCari] = useState('');
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
     const [formData, setFormData] = useState({ faturaNo: '', cariId: '', faturaTarihi: '', aciklama: '' });
-    const [kalemler, setKalemler] = useState<FaturaKalemiCreate[]>([
-        { urunAdi: '', miktar: 1, birimFiyat: 0, indirimOrani: 0, kdvOrani: 18 }
-    ]);
+    const [kalemler, setKalemler] = useState<FaturaKalemiCreate[]>([]);
+    const [showCariModal, setShowCariModal] = useState(false);
+    const [showProductModal, setShowProductModal] = useState(false);
+    const [expandedRowIndex, setExpandedRowIndex] = useState<number | null>(null);
+    const [productSearchTerm, setProductSearchTerm] = useState('');
+    const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
+    const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
+
+    // Malzeme seçim filtreleri
+    const [productCategoryFilter, setProductCategoryFilter] = useState('');
+    const [productSerialFilter, setProductSerialFilter] = useState('');
+    const [productBarcodeFilter, setProductBarcodeFilter] = useState('');
+
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const canAdd = hasEntityPermission('fatura', 'add');
+    const canEdit = hasEntityPermission('fatura', 'edit');
+    const canDelete = hasEntityPermission('fatura', 'delete');
 
     useEffect(() => {
         loadData();
@@ -27,10 +45,11 @@ export default function Faturalar() {
 
     const loadData = async () => {
         try {
-            const [faturalarData, carilerData, urunlerData] = await Promise.all([
+            const [faturalarData, carilerData, urunlerData, kategorilerData] = await Promise.all([
                 faturaService.getAll(),
                 cariService.getAll(),
-                urunService.getAll()
+                urunService.getAll(),
+                kategoriService.getAll()
             ]);
 
             let data = faturalarData;
@@ -43,23 +62,94 @@ export default function Faturalar() {
             setFaturalar(data);
             setCariler(carilerData);
             setUrunler(urunlerData);
+            setKategoriler(kategorilerData);
         } catch (error) {
             console.error('Veri yükleme hatası:', error);
         }
     };
 
+    const filteredFaturalar = faturalar.filter(f =>
+        f.faturaNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        f.cariAdi.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value);
     };
 
+    // Aktif filtre kontrolü
+    const hasActiveProductFilter = useMemo(() => {
+        return productSearchTerm.trim() !== '' ||
+            productCategoryFilter !== '' ||
+            productSerialFilter.trim() !== '' ||
+            productBarcodeFilter.trim() !== '';
+    }, [productSearchTerm, productCategoryFilter, productSerialFilter, productBarcodeFilter]);
+
+    // Filtrelenmiş ürünler - sadece filtre uygulandığında göster
+    const filteredProducts = useMemo(() => {
+        if (!hasActiveProductFilter) return [];
+        return urunler.filter(u => {
+            const matchesSearch = !productSearchTerm.trim() ||
+                u.ad.toLowerCase().includes(productSearchTerm.toLowerCase());
+            const matchesCategory = !productCategoryFilter ||
+                u.kategoriId === parseInt(productCategoryFilter);
+            const matchesSerial = !productSerialFilter.trim() ||
+                (u as any).seriNumarasi?.toLowerCase().includes(productSerialFilter.toLowerCase());
+            const matchesBarcode = !productBarcodeFilter.trim() ||
+                u.barkod?.toLowerCase().includes(productBarcodeFilter.toLowerCase());
+            return matchesSearch && matchesCategory && matchesSerial && matchesBarcode;
+        });
+    }, [urunler, productSearchTerm, productCategoryFilter, productSerialFilter, productBarcodeFilter, hasActiveProductFilter]);
+
+    // Satır toplam hesaplama
+    const calculateKalemToplam = (kalem: FaturaKalemiCreate) => {
+        const araToplam = kalem.miktar * kalem.birimFiyat;
+        const indirimTutari = araToplam * (kalem.indirimOrani / 100);
+        const kdvTutari = (araToplam - indirimTutari) * (kalem.kdvOrani / 100);
+        return araToplam - indirimTutari + kdvTutari;
+    };
+
+    // Genel toplam hesaplama
+    const genelToplam = useMemo(() => {
+        return kalemler.reduce((total, kalem) => total + calculateKalemToplam(kalem), 0);
+    }, [kalemler]);
+
+    // Ürün seçim toggle
+    const toggleProductSelection = (productId: number) => {
+        const newSet = new Set(selectedProductIds);
+        if (newSet.has(productId)) {
+            newSet.delete(productId);
+        } else {
+            newSet.add(productId);
+        }
+        setSelectedProductIds(newSet);
+    };
+
+    // Seçilen ürünleri fatura kalemlerine ekle
+    const addSelectedProducts = () => {
+        const newKalemler = Array.from(selectedProductIds).map(productId => {
+            const urun = urunler.find(u => u.id === productId);
+            return {
+                urunId: productId,
+                urunAdi: urun?.ad || '',
+                miktar: 1,
+                birimFiyat: urun?.maliyet || 0,
+                indirimOrani: 0,
+                kdvOrani: 20
+            };
+        });
+        setKalemler([...kalemler, ...newKalemler]);
+        setSelectedProductIds(new Set());
+        setProductSearchTerm('');
+        setShowProductModal(false);
+    };
+
     const addKalem = () => {
-        setKalemler([...kalemler, { urunAdi: '', miktar: 1, birimFiyat: 0, indirimOrani: 0, kdvOrani: 18 }]);
+        setKalemler([...kalemler, { urunAdi: '', miktar: 1, birimFiyat: 0, indirimOrani: 0, kdvOrani: 20 }]);
     };
 
     const removeKalem = (index: number) => {
-        if (kalemler.length > 1) {
-            setKalemler(kalemler.filter((_, i) => i !== index));
-        }
+        setKalemler(kalemler.filter((_, i) => i !== index));
     };
 
     const updateKalem = (index: number, field: string, value: any) => {
@@ -71,22 +161,81 @@ export default function Faturalar() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await faturaService.create({
+            const data = {
                 faturaNo: formData.faturaNo,
                 cariId: parseInt(formData.cariId),
                 cariAdi: cariler.find(c => c.id === parseInt(formData.cariId))?.firmaAdi || '',
                 faturaTarihi: formData.faturaTarihi,
                 aciklama: formData.aciklama || undefined,
-                kalemler: kalemler.map((k, i) => ({ ...k, id: i + 1, toplam: k.miktar * k.birimFiyat * (1 - k.indirimOrani / 100) * (1 + k.kdvOrani / 100) })),
-            });
+                kalemler: kalemler.map((k, i) => ({
+                    ...k,
+                    id: i + 1,
+                    toplam: k.miktar * k.birimFiyat * (1 - k.indirimOrani / 100) * (1 + k.kdvOrani / 100)
+                })),
+            };
+
+            if (editingId) {
+                await faturaService.update(editingId, data);
+            } else {
+                await faturaService.create(data);
+            }
+
             loadData();
-            setShowModal(false);
-            setFormData({ faturaNo: '', cariId: '', faturaTarihi: '', aciklama: '' });
-            setKalemler([{ urunAdi: '', miktar: 1, birimFiyat: 0, indirimOrani: 0, kdvOrani: 18 }]);
+            closeModal();
         } catch (error) {
             console.error('Kaydetme hatası:', error);
             alert('Kaydetme sırasında bir hata oluştu.');
         }
+    };
+
+    const handleEdit = (fatura: Fatura) => {
+        setEditingId(fatura.id);
+        setFormData({
+            faturaNo: fatura.faturaNo,
+            cariId: fatura.cariId.toString(),
+            faturaTarihi: fatura.faturaTarihi.split('T')[0],
+            aciklama: fatura.aciklama || ''
+        });
+
+        // Fatura kalemlerini form formatına dönüştür
+        if (fatura.kalemler && fatura.kalemler.length > 0) {
+            setKalemler(fatura.kalemler.map(k => ({
+                urunId: k.urunId,
+                urunAdi: k.urunAdi,
+                miktar: k.miktar,
+                birimFiyat: k.birimFiyat,
+                indirimOrani: k.indirimOrani,
+                kdvOrani: k.kdvOrani
+            })));
+        } else {
+            setKalemler([]);
+        }
+
+        setShowModal(true);
+    };
+
+    const handleDelete = async (id: number) => {
+        if (window.confirm('Bu faturayı silmek istediğinize emin misiniz?')) {
+            try {
+                await faturaService.delete(id);
+                loadData();
+            } catch (error) {
+                console.error('Silme hatası:', error);
+                alert('Silme sırasında bir hata oluştu.');
+            }
+        }
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setEditingId(null);
+        setFormData({ faturaNo: '', cariId: '', faturaTarihi: '', aciklama: '' });
+        setKalemler([]);
+        setProductSearchTerm('');
+        setSelectedProductIds(new Set());
+        setProductCategoryFilter('');
+        setProductSerialFilter('');
+        setProductBarcodeFilter('');
     };
 
     const clearFilters = () => {
@@ -95,174 +244,492 @@ export default function Faturalar() {
         setFilterEndDate('');
     };
 
-    return (
-        <>
-            <header className="page-header">
-                <div>
-                    <h1>Faturalar</h1>
-                    <p>Tüm faturaları görüntüleyin ve yönetin</p>
-                </div>
-            </header>
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setUploading(true);
+            try {
+                const data = await faturaService.uploadPdf(file);
+                setFormData({
+                    faturaNo: data.faturaNo,
+                    cariId: data.cariId.toString(),
+                    faturaTarihi: data.faturaTarihi.split('T')[0],
+                    aciklama: data.aciklama || ''
+                });
 
-            <div className="page-content">
-                <div className="toolbar">
-                    <button className={`btn ${showFilter ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setShowFilter(!showFilter)}>
-                        <Filter size={18} /> Filtrele
-                    </button>
-                    {canAdd && (
-                        <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setShowModal(true)}>
-                            <Plus size={18} /> Yeni Fatura
+                if (data.kalemler && data.kalemler.length > 0) {
+                    setKalemler(data.kalemler.map((k: any) => {
+                        const urun = urunler.find(u => u.id === k.urunId);
+                        return {
+                            urunId: k.urunId,
+                            urunAdi: urun ? urun.ad : '',
+                            miktar: k.miktar,
+                            birimFiyat: k.birimFiyat,
+                            indirimOrani: k.indirimOrani,
+                            kdvOrani: k.kdvOrani
+                        };
+                    }));
+                }
+
+                setEditingId(null);
+                setShowModal(true);
+            } catch (error) {
+                console.error('PDF yükleme hatası:', error);
+                alert('PDF yükleme sırasında bir hata oluştu veya dosya formatı geçersiz.');
+            } finally {
+                setUploading(false);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
+        }
+    };
+
+    const columns: Column<Fatura>[] = [
+        {
+            header: 'Fatura No',
+            render: (fatura) => (
+                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{fatura.faturaNo}</span>
+            )
+        },
+        { header: 'Cari', accessor: 'cariAdi' },
+        {
+            header: 'Tarih',
+            render: (fatura) => new Date(fatura.faturaTarihi).toLocaleDateString('tr-TR')
+        },
+        {
+            header: 'Ara Toplam',
+            render: (fatura) => formatCurrency(fatura.araToplam)
+        },
+        {
+            header: 'İndirim',
+            render: (fatura) => <span className="text-error">{formatCurrency(fatura.toplamIndirim)}</span>
+        },
+        {
+            header: 'KDV',
+            render: (fatura) => formatCurrency(fatura.toplamKdv)
+        },
+        {
+            header: 'Genel Toplam',
+            render: (fatura) => <span style={{ color: 'var(--primary-400)', fontWeight: 600 }}>{formatCurrency(fatura.genelToplam)}</span>
+        },
+        ...((canEdit || canDelete) ? [{
+            header: 'İşlemler',
+            render: (fatura: Fatura) => (
+                <div className="flex gap-sm">
+                    {canEdit && (
+                        <button className="btn btn-icon btn-secondary" onClick={() => handleEdit(fatura)}>
+                            <Edit size={16} />
+                        </button>
+                    )}
+                    {canDelete && (
+                        <button className="btn btn-icon btn-danger" onClick={() => handleDelete(fatura.id)}>
+                            <Trash2 size={16} />
                         </button>
                     )}
                 </div>
+            )
+        }] : [])
+    ];
 
-                {/* Filter Panel */}
-                {showFilter && (
-                    <div className="card" style={{ marginBottom: 'var(--spacing-lg)' }}>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                            <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '200px' }}>
-                                <label className="form-label">Cari</label>
-                                <select className="form-select" value={filterCari} onChange={(e) => setFilterCari(e.target.value)}>
-                                    <option value="">Tüm Cariler</option>
-                                    {cariler.map((c) => (<option key={c.id} value={c.id}>{c.firmaAdi}</option>))}
-                                </select>
-                            </div>
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                                <label className="form-label">Başlangıç Tarihi</label>
-                                <input type="date" className="form-input" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
-                            </div>
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                                <label className="form-label">Bitiş Tarihi</label>
-                                <input type="date" className="form-input" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
-                            </div>
-                            <button className="btn btn-secondary" onClick={clearFilters}>Temizle</button>
+    return (
+        <>
+            <div className="page-content">
+
+
+                <DataTable
+                    title="Faturalar"
+                    columns={columns}
+                    data={filteredFaturalar}
+                    searchable={true}
+                    onSearch={(term) => setSearchTerm(term)}
+                    searchPlaceholder="Fatura no veya cari ara..."
+                    onAdd={canAdd ? () => {
+                        setEditingId(null);
+                        setFormData({ faturaNo: '', cariId: '', faturaTarihi: new Date().toISOString().split('T')[0], aciklama: '' });
+                        setKalemler([]);
+                        setShowModal(true);
+                    } : undefined}
+                    addButtonLabel="Fatura Ekle"
+                    emptyMessage="Hiç fatura bulunamadı."
+                    extraToolbarContent={
+                        <div className="flex gap-sm items-center">
+                            <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".pdf" style={{ display: 'none' }} />
+                            {canAdd && (
+                                <button className="btn btn-secondary" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+                                    <Upload size={18} /> {uploading ? 'Yükleniyor...' : 'PDF Fatura Ekle'}
+                                </button>
+                            )}
+                            <button className={`btn ${showFilter ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setShowFilter(!showFilter)}>
+                                <Filter size={18} /> Filtrele
+                            </button>
                         </div>
-                    </div>
-                )}
-
-                <div className="table-container">
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>Fatura No</th>
-                                <th>Cari</th>
-                                <th>Tarih</th>
-                                <th>Ara Toplam</th>
-                                <th>İndirim</th>
-                                <th>KDV</th>
-                                <th>Genel Toplam</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {faturalar.map((fatura) => (
-                                <tr key={fatura.id}>
-                                    <td style={{ color: 'var(--text-primary)' }}>
-                                        <div className="flex items-center gap-md">
-                                            <div style={{ width: '36px', height: '36px', background: 'rgba(245, 158, 11, 0.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-warning)' }}>
-                                                <FileText size={18} />
-                                            </div>
-                                            {fatura.faturaNo}
-                                        </div>
-                                    </td>
-                                    <td>{fatura.cariAdi}</td>
-                                    <td>{new Date(fatura.faturaTarihi).toLocaleDateString('tr-TR')}</td>
-                                    <td>{formatCurrency(fatura.araToplam)}</td>
-                                    <td className="text-error">{formatCurrency(fatura.toplamIndirim)}</td>
-                                    <td>{formatCurrency(fatura.toplamKdv)}</td>
-                                    <td style={{ color: 'var(--primary-400)', fontWeight: 600 }}>{formatCurrency(fatura.genelToplam)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                    }
+                />
+            </div >
 
             {/* Modal */}
-            {showModal && (
-                <div className="modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px' }}>
-                        <div className="modal-header">
-                            <h2>Yeni Fatura</h2>
-                            <button className="modal-close" onClick={() => setShowModal(false)}><X size={20} /></button>
-                        </div>
-                        <form onSubmit={handleSubmit}>
-                            <div className="modal-body">
-                                <div className="grid-3">
-                                    <div className="form-group">
-                                        <label className="form-label">Cari *</label>
-                                        <select className="form-select" required value={formData.cariId}
-                                            onChange={(e) => setFormData({ ...formData, cariId: e.target.value })}>
-                                            <option value="">Seçiniz</option>
-                                            {cariler.map((c) => (<option key={c.id} value={c.id}>{c.firmaAdi}</option>))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Fatura No *</label>
-                                        <input type="text" className="form-input" required value={formData.faturaNo}
-                                            onChange={(e) => setFormData({ ...formData, faturaNo: e.target.value })} placeholder="FTR-2026-XXX" />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Tarih *</label>
-                                        <input type="date" className="form-input" required value={formData.faturaTarihi}
-                                            onChange={(e) => setFormData({ ...formData, faturaTarihi: e.target.value })} />
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop: 'var(--spacing-lg)', marginBottom: 'var(--spacing-md)' }}>
-                                    <div className="flex justify-between items-center">
-                                        <h4>Ürün Kalemleri</h4>
-                                        <button type="button" className="btn btn-outline" onClick={addKalem}>
-                                            <Plus size={16} /> Kalem Ekle
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {kalemler.map((kalem, index) => (
-                                    <div key={index} className="card" style={{ marginBottom: 'var(--spacing-md)', padding: 'var(--spacing-md)' }}>
-                                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                                            <div className="form-group" style={{ flex: 2, marginBottom: 0, minWidth: '200px' }}>
-                                                <label className="form-label">Ürün Adı</label>
-                                                <input type="text" className="form-input" value={kalem.urunAdi} required
-                                                    onChange={(e) => updateKalem(index, 'urunAdi', e.target.value)} />
-                                            </div>
-                                            <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: '80px' }}>
-                                                <label className="form-label">Miktar</label>
-                                                <input type="number" className="form-input" value={kalem.miktar}
-                                                    onChange={(e) => updateKalem(index, 'miktar', parseFloat(e.target.value))} />
-                                            </div>
-                                            <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: '100px' }}>
-                                                <label className="form-label">Birim Fiyat</label>
-                                                <input type="number" className="form-input" value={kalem.birimFiyat}
-                                                    onChange={(e) => updateKalem(index, 'birimFiyat', parseFloat(e.target.value))} />
-                                            </div>
-                                            <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: '80px' }}>
-                                                <label className="form-label">İndirim %</label>
-                                                <input type="number" className="form-input" value={kalem.indirimOrani}
-                                                    onChange={(e) => updateKalem(index, 'indirimOrani', parseFloat(e.target.value))} />
-                                            </div>
-                                            <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: '80px' }}>
-                                                <label className="form-label">KDV %</label>
-                                                <input type="number" className="form-input" value={kalem.kdvOrani}
-                                                    onChange={(e) => updateKalem(index, 'kdvOrani', parseFloat(e.target.value))} />
-                                            </div>
-                                            <button type="button" className="btn btn-icon btn-danger" onClick={() => removeKalem(index)} disabled={kalemler.length === 1}>
-                                                <Trash2 size={18} />
+            {
+                showModal && (
+                    <div className="modal-overlay" onClick={() => setShowModal(false)}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px' }}>
+                            <div className="modal-header">
+                                <h2>{editingId ? 'Fatura Düzenle' : 'Fatura Ekle'}</h2>
+                                <button className="modal-close" onClick={closeModal}><X size={20} /></button>
+                            </div>
+                            <form onSubmit={handleSubmit}>
+                                <div className="modal-body">
+                                    <div className="grid-3">
+                                        <div className="form-group">
+                                            <label className="form-label">Cari</label>
+                                            <select className="form-select" required value={formData.cariId}
+                                                onChange={(e) => setFormData({ ...formData, cariId: e.target.value })}>
+                                                <option value="">Cari Seçiniz</option>
+                                                {cariler.map((c) => (<option key={c.id} value={c.id}>{c.firmaAdi}</option>))}
+                                            </select>
+                                            <button type="button" className="btn btn-outline btn-sm mt-2" style={{ marginTop: '8px', width: '100%' }} onClick={() => setShowCariModal(true)}>
+                                                <Plus size={16} style={{ marginRight: '6px' }} /> Cari Ekle
                                             </button>
                                         </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Fatura No</label>
+                                            <input type="text" className="form-input" required value={formData.faturaNo}
+                                                onChange={(e) => setFormData({ ...formData, faturaNo: e.target.value })} placeholder="Fatura No" />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Fatura Tarihi</label>
+                                            <input type="date" className="form-input" required value={formData.faturaTarihi}
+                                                onChange={(e) => setFormData({ ...formData, faturaTarihi: e.target.value })} />
+                                        </div>
                                     </div>
-                                ))}
 
+
+
+
+
+                                    {/* Malzeme Ekleme Bölümü */}
+                                    <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 'var(--spacing-lg)', marginTop: 'var(--spacing-lg)' }}>
+                                        <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-md)' }}>
+                                            <label className="form-label" style={{ margin: 0 }}>Fatura Kalemleri</label>
+                                            <button type="button" className="btn btn-outline" onClick={() => setShowProductModal(true)}>
+                                                <Package size={16} style={{ marginRight: '6px' }} /> Malzeme Ekle
+                                            </button>
+                                        </div>
+
+                                        {kalemler.length > 0 ? (
+                                            <div style={{ overflowX: 'auto' }}>
+                                                <table className="data-table" style={{ width: '100%', marginBottom: 'var(--spacing-md)' }}>
+                                                    <thead>
+                                                        <tr>
+                                                            <th style={{ width: '35%' }}>Ürün Adı</th>
+                                                            <th style={{ width: '20%' }}>Birim Fiyat</th>
+                                                            <th style={{ width: '12%' }}>İndirim %</th>
+                                                            <th style={{ width: '12%' }}>KDV %</th>
+                                                            <th style={{ width: '15%' }}>Toplam</th>
+                                                            <th style={{ width: '6%' }}></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {kalemler.map((kalem, index) => {
+                                                            const urun = urunler.find(u => u.id === kalem.urunId);
+                                                            const isExpanded = expandedRowIndex === index;
+
+                                                            return (
+                                                                <React.Fragment key={index}>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <div style={{ position: 'relative' }}>
+                                                                                <input type="text" className="form-input" value={kalem.urunAdi}
+                                                                                    readOnly
+                                                                                    onClick={() => setExpandedRowIndex(isExpanded ? null : index)}
+                                                                                    placeholder="Ürün seçiniz"
+                                                                                    style={{ width: '100%', cursor: 'pointer', paddingRight: '30px' }} />
+                                                                                <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)' }}>
+                                                                                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                                                </span>
+                                                                            </div>
+                                                                        </td>
+
+                                                                        <td>
+                                                                            <input type="number" className="form-input" min="0" step="0.01" value={kalem.birimFiyat}
+                                                                                onChange={(e) => updateKalem(index, 'birimFiyat', parseFloat(e.target.value) || 0)}
+                                                                                style={{ width: '100%' }} />
+                                                                        </td>
+                                                                        <td>
+                                                                            <input type="number" className="form-input" min="0" max="100" value={kalem.indirimOrani}
+                                                                                onChange={(e) => updateKalem(index, 'indirimOrani', parseFloat(e.target.value) || 0)}
+                                                                                style={{ width: '100%' }} />
+                                                                        </td>
+                                                                        <td>
+                                                                            <input type="number" className="form-input" min="0" max="100" value={kalem.kdvOrani}
+                                                                                onChange={(e) => updateKalem(index, 'kdvOrani', parseFloat(e.target.value) || 0)}
+                                                                                style={{ width: '100%' }} />
+                                                                        </td>
+                                                                        <td style={{ fontWeight: 600, color: 'var(--primary-400)' }}>
+                                                                            {formatCurrency(calculateKalemToplam(kalem))}
+                                                                        </td>
+                                                                        <td>
+                                                                            <button type="button" className="btn btn-icon btn-danger" onClick={() => removeKalem(index)}>
+                                                                                <Trash2 size={14} />
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                    {isExpanded && urun && (
+                                                                        <tr>
+                                                                            <td colSpan={6} style={{ background: 'var(--bg-tertiary)', padding: 'var(--spacing-md)' }}>
+                                                                                <div className="grid-3" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Barkod:</strong> {urun.barkod || '-'}</div>
+                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Kategori:</strong> {urun.kategoriAdi || '-'}</div>
+                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Depo:</strong> {urun.depoAdi || '-'}</div>
+                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Stok:</strong> {urun.stokMiktari} {urun.birim}</div>
+                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Durum:</strong> {urun.durum}</div>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    )}
+                                                                </React.Fragment>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+
+                                                {/* Genel Toplam */}
+                                                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 'var(--spacing-md)', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <span style={{ color: 'var(--text-muted)', marginRight: 'var(--spacing-md)' }}>Genel Toplam:</span>
+                                                        <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary-400)' }}>
+                                                            {formatCurrency(genelToplam)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div style={{ padding: 'var(--spacing-xl)', textAlign: 'center', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', color: 'var(--text-muted)' }}>
+                                                <Package size={32} style={{ marginBottom: 'var(--spacing-sm)', opacity: 0.5 }} />
+                                                <p>Henüz malzeme eklenmedi. "Malzeme Ekle" butonunu kullanarak ürün ekleyebilirsiniz.</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="form-group" style={{ marginTop: 'var(--spacing-lg)' }}>
+                                        <label className="form-label">Açıklama</label>
+                                        <textarea className="form-textarea" rows={2} value={formData.aciklama}
+                                            placeholder="Açıklama"
+                                            onChange={(e) => setFormData({ ...formData, aciklama: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" className="btn btn-secondary" onClick={closeModal}>İptal</button>
+                                    <button type="submit" className="btn btn-primary">{editingId ? 'Güncelle' : 'Kaydet'}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+            {/* Filter Modal */}
+            {
+                showFilter && (
+                    <div className="modal-overlay" onClick={() => setShowFilter(false)}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                            <div className="modal-header">
+                                <h2>Filtrele</h2>
+                                <button className="modal-close" onClick={() => setShowFilter(false)}><X size={20} /></button>
+                            </div>
+                            <div className="modal-body">
                                 <div className="form-group">
-                                    <label className="form-label">Açıklama</label>
-                                    <textarea className="form-textarea" rows={2} value={formData.aciklama}
-                                        onChange={(e) => setFormData({ ...formData, aciklama: e.target.value })} />
+                                    <label className="form-label">Cari Seçimi</label>
+                                    <select className="form-select" value={filterCari} onChange={(e) => setFilterCari(e.target.value)}>
+                                        <option value="">Tüm Cariler</option>
+                                        {cariler.map((c) => (<option key={c.id} value={c.id}>{c.firmaAdi}</option>))}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Başlangıç Tarihi</label>
+                                    <input type="date" className="form-input" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Bitiş Tarihi</label>
+                                    <input type="date" className="form-input" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>İptal</button>
-                                <button type="submit" className="btn btn-primary">Kaydet</button>
+                                <button className="btn btn-secondary" onClick={clearFilters}>Temizle</button>
+                                <button className="btn btn-primary" onClick={() => setShowFilter(false)}>Uygula</button>
                             </div>
-                        </form>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Use the shared CariModal */}
+            <CariModal
+                isOpen={showCariModal}
+                onClose={() => setShowCariModal(false)}
+                onSuccess={loadData}
+            />
+
+            {/* Product Selection Modal */}
+            {showProductModal && (
+                <div className="modal-overlay" onClick={() => { setShowProductModal(false); setProductSearchTerm(''); setSelectedProductIds(new Set()); setProductCategoryFilter(''); setProductSerialFilter(''); setProductBarcodeFilter(''); }}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+                        <div className="modal-header">
+                            <h2>
+                                <div className="flex items-center gap-md">
+                                    <Package size={24} style={{ color: 'var(--primary-400)' }} />
+                                    Malzeme Seç
+                                </div>
+                            </h2>
+                            <button className="modal-close" onClick={() => { setShowProductModal(false); setProductSearchTerm(''); setSelectedProductIds(new Set()); setProductCategoryFilter(''); setProductSerialFilter(''); setProductBarcodeFilter(''); }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            {/* Filtre Alanları - Kompakt */}
+                            <div style={{ marginBottom: '12px', padding: '12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', alignItems: 'center' }}>
+                                    {/* Ürün Adı Arama */}
+                                    <div style={{ position: 'relative' }}>
+                                        <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Ürün adı ara..."
+                                            value={productSearchTerm}
+                                            onChange={(e) => setProductSearchTerm(e.target.value)}
+                                            style={{ paddingLeft: '32px', height: '36px', fontSize: '0.875rem' }}
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    {/* Kategori Filtresi */}
+                                    <select
+                                        className="form-select"
+                                        value={productCategoryFilter}
+                                        onChange={(e) => setProductCategoryFilter(e.target.value)}
+                                        style={{ height: '36px', fontSize: '0.875rem' }}
+                                    >
+                                        <option value="">Kategori Seçiniz</option>
+                                        {kategoriler.map((k) => (
+                                            <option key={k.id} value={k.id}>{k.ad}</option>
+                                        ))}
+                                    </select>
+
+                                    {/* Seri Numarası Filtresi */}
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Seri numarası..."
+                                        value={productSerialFilter}
+                                        onChange={(e) => setProductSerialFilter(e.target.value)}
+                                        style={{ height: '36px', fontSize: '0.875rem' }}
+                                    />
+
+                                    {/* Barkod Filtresi */}
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Barkod..."
+                                            value={productBarcodeFilter}
+                                            onChange={(e) => setProductBarcodeFilter(e.target.value)}
+                                            style={{ height: '36px', fontSize: '0.875rem', flex: 1 }}
+                                        />
+                                        {/* Filtreleri Temizle Butonu (Aktifse) */}
+                                        {hasActiveProductFilter && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-icon btn-secondary"
+                                                onClick={() => {
+                                                    setProductSearchTerm('');
+                                                    setProductCategoryFilter('');
+                                                    setProductSerialFilter('');
+                                                    setProductBarcodeFilter('');
+                                                }}
+                                                title="Filtreleri Temizle"
+                                                style={{ height: '36px', width: '36px', flexShrink: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {!hasActiveProductFilter && (
+                                    <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.75rem', textAlign: 'center' }}>
+                                        * Listelemek için filtre kullanın
+                                    </small>
+                                )}
+                            </div>
+
+                            {/* Product List */}
+                            <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                                {!hasActiveProductFilter ? (
+                                    <div style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                        <Filter size={32} style={{ marginBottom: 'var(--spacing-sm)', opacity: 0.5 }} />
+                                        <p>Ürünleri listelemek için yukarıdaki filtre alanlarından en az birini kullanın.</p>
+                                    </div>
+                                ) : filteredProducts.length === 0 ? (
+                                    <div style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                        <Package size={32} style={{ marginBottom: 'var(--spacing-sm)', opacity: 0.5 }} />
+                                        <p>Aramanızla eşleşen ürün bulunamadı.</p>
+                                    </div>
+                                ) : (
+                                    <table className="data-table" style={{ width: '100%' }}>
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: '50px' }}></th>
+                                                <th>Ürün Adı</th>
+                                                <th>Barkod</th>
+                                                <th>Stok</th>
+                                                <th>Maliyet</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredProducts.map((urun) => (
+                                                <tr
+                                                    key={urun.id}
+                                                    onClick={() => toggleProductSelection(urun.id)}
+                                                    style={{ cursor: 'pointer', background: selectedProductIds.has(urun.id) ? 'rgba(16, 185, 129, 0.1)' : 'transparent' }}
+                                                >
+                                                    <td>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedProductIds.has(urun.id)}
+                                                            onChange={() => toggleProductSelection(urun.id)}
+                                                            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ fontWeight: 500 }}>{urun.ad}</td>
+                                                    <td style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{urun.barkod || '-'}</td>
+                                                    <td>{urun.stokMiktari} {urun.birim}</td>
+                                                    <td style={{ color: 'var(--primary-400)' }}>{formatCurrency(urun.maliyet)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+
+                            {/* Selection Info */}
+                            {selectedProductIds.size > 0 && (
+                                <div style={{ marginTop: 'var(--spacing-md)', padding: 'var(--spacing-sm) var(--spacing-md)', background: 'rgba(16, 185, 129, 0.1)', borderRadius: 'var(--radius-md)', color: 'var(--primary-400)' }}>
+                                    <strong>{selectedProductIds.size}</strong> ürün seçildi
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={() => { setShowProductModal(false); setProductSearchTerm(''); setSelectedProductIds(new Set()); setProductCategoryFilter(''); setProductSerialFilter(''); setProductBarcodeFilter(''); }}>
+                                İptal
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                disabled={selectedProductIds.size === 0}
+                                onClick={addSelectedProducts}
+                            >
+                                <Plus size={16} style={{ marginRight: '6px' }} />
+                                Seçilenleri Ekle ({selectedProductIds.size})
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

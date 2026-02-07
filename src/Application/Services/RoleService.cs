@@ -9,14 +9,23 @@ public class RoleService : IRoleService
 {
     private readonly IRepository<Role> _roleRepository;
     private readonly IRepository<User> _userRepository;
-    private readonly ISystemLogService _logService; // For logging actions
+    private readonly ISystemLogService _logService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public RoleService(IRepository<Role> roleRepository, IRepository<User> userRepository, ISystemLogService logService)
+    public RoleService(
+        IRepository<Role> roleRepository,
+        IRepository<User> userRepository,
+        ISystemLogService logService,
+        ICurrentUserService currentUserService)
     {
         _roleRepository = roleRepository;
         _userRepository = userRepository;
         _logService = logService;
+        _currentUserService = currentUserService;
     }
+    
+    private int? CurrentUserId => _currentUserService.UserId;
+    private string CurrentUserName => _currentUserService.UserName;
 
     private RoleDto MapToDto(Role role)
     {
@@ -62,7 +71,7 @@ public class RoleService : IRoleService
 
         var created = await _roleRepository.AddAsync(newRole);
         
-        await _logService.LogAsync("Create", "Role", created.Id, $"Yeni rol oluşturuldu: {created.Name}", null, "System", null); // User info should ideally come from Context but simplifying for now
+        await _logService.LogAsync("Create", "Role", created.Id, $"Yeni rol oluşturuldu: {created.Name}", CurrentUserId, CurrentUserName, null);
 
         return MapToDto(created);
     }
@@ -79,7 +88,7 @@ public class RoleService : IRoleService
 
         await _roleRepository.UpdateAsync(role);
         
-        await _logService.LogAsync("Update", "Role", role.Id, $"Rol güncellendi: {role.Name}", null, "System", null);
+        await _logService.LogAsync("Update", "Role", role.Id, $"Rol güncellendi: {role.Name}", CurrentUserId, CurrentUserName, null);
 
         return MapToDto(role);
     }
@@ -97,6 +106,6 @@ public class RoleService : IRoleService
 
         await _roleRepository.DeleteAsync(id);
         
-        await _logService.LogAsync("Delete", "Role", id, $"Rol silindi: {role.Name}", null, "System", null);
+        await _logService.LogAsync("Delete", "Role", id, $"Rol silindi: {role.Name}", CurrentUserId, CurrentUserName, null);
     }
 }

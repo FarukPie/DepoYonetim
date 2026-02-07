@@ -3,16 +3,28 @@ using DepoYonetim.Core.Entities;
 using DepoYonetim.Core.Enums;
 using DepoYonetim.Core.Interfaces;
 
+
+
 namespace DepoYonetim.Application.Services;
 
 public class CariService : ICariService
 {
     private readonly ICariRepository _cariRepository;
+    private readonly ISystemLogService _logService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public CariService(ICariRepository cariRepository)
+    public CariService(
+        ICariRepository cariRepository,
+        ISystemLogService logService,
+        ICurrentUserService currentUserService)
     {
         _cariRepository = cariRepository;
+        _logService = logService;
+        _currentUserService = currentUserService;
     }
+
+    private int? CurrentUserId => _currentUserService.UserId;
+    private string CurrentUserName => _currentUserService.UserName;
 
     private CariDto MapToDto(Cari c)
     {
@@ -20,6 +32,7 @@ public class CariService : ICariService
             c.Id,
             c.FirmaAdi,
             c.Tip.ToString(),
+            c.TicaretSicilNo,
             c.VergiNo,
             c.VergiDairesi,
             c.Adres,
@@ -61,6 +74,7 @@ public class CariService : ICariService
         {
             FirmaAdi = dto.FirmaAdi,
             Tip = Enum.Parse<CariTipi>(dto.Tip),
+            TicaretSicilNo = dto.TicaretSicilNo,
             VergiNo = dto.VergiNo,
             VergiDairesi = dto.VergiDairesi,
             Adres = dto.Adres,
@@ -77,6 +91,12 @@ public class CariService : ICariService
         };
 
         await _cariRepository.AddAsync(entity);
+        
+        await _logService.LogAsync(
+            "Create", "Cari", entity.Id, 
+            $"Yeni cari eklendi: {entity.FirmaAdi}", 
+            CurrentUserId, CurrentUserName, null);
+
         return MapToDto(entity);
     }
 
@@ -85,8 +105,11 @@ public class CariService : ICariService
         var entity = await _cariRepository.GetByIdAsync(id);
         if (entity == null) return;
 
+        var oldName = entity.FirmaAdi;
+
         entity.FirmaAdi = dto.FirmaAdi;
         entity.Tip = Enum.Parse<CariTipi>(dto.Tip);
+        entity.TicaretSicilNo = dto.TicaretSicilNo;
         entity.VergiNo = dto.VergiNo;
         entity.VergiDairesi = dto.VergiDairesi;
         entity.Adres = dto.Adres;
@@ -102,10 +125,24 @@ public class CariService : ICariService
         entity.IbanNo = dto.IbanNo;
 
         await _cariRepository.UpdateAsync(entity);
+
+        await _logService.LogAsync(
+            "Update", "Cari", entity.Id, 
+            $"Cari güncellendi: {oldName} -> {entity.FirmaAdi}", 
+            CurrentUserId, CurrentUserName, null);
     }
 
     public async Task DeleteAsync(int id)
     {
-        await _cariRepository.DeleteAsync(id);
+        var entity = await _cariRepository.GetByIdAsync(id);
+        if (entity != null)
+        {
+            await _cariRepository.DeleteAsync(id);
+            
+            await _logService.LogAsync(
+                "Delete", "Cari", id, 
+                $"Cari silindi: {entity.FirmaAdi}", 
+                CurrentUserId, CurrentUserName, null);
+        }
     }
 }

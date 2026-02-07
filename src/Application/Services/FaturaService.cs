@@ -7,11 +7,21 @@ namespace DepoYonetim.Application.Services;
 public class FaturaService : IFaturaService
 {
     private readonly IFaturaRepository _faturaRepository;
+    private readonly ISystemLogService _logService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public FaturaService(IFaturaRepository faturaRepository)
+    public FaturaService(
+        IFaturaRepository faturaRepository,
+        ISystemLogService logService,
+        ICurrentUserService currentUserService)
     {
         _faturaRepository = faturaRepository;
+        _logService = logService;
+        _currentUserService = currentUserService;
     }
+
+    private int? CurrentUserId => _currentUserService.UserId;
+    private string CurrentUserName => _currentUserService.UserName;
 
     private FaturaDto MapToDto(Fatura f)
     {
@@ -89,11 +99,45 @@ public class FaturaService : IFaturaService
         entity.GenelToplam = araAfterIndirim + entity.ToplamKdv;
 
         await _faturaRepository.AddAsync(entity);
+        
+        await _logService.LogAsync(
+             "Create", "Fatura", entity.Id, 
+             $"Yeni fatura oluşturuldu. No: {entity.FaturaNo}, Cari: {entity.CariId}", 
+             CurrentUserId, CurrentUserName, null);
+
         return MapToDto(entity);
     }
 
     public async Task DeleteAsync(int id)
     {
-        await _faturaRepository.DeleteAsync(id);
+        var entity = await _faturaRepository.GetByIdAsync(id);
+        if (entity != null)
+        {
+            await _faturaRepository.DeleteAsync(id);
+            
+            await _logService.LogAsync(
+                 "Delete", "Fatura", id, 
+                 $"Fatura silindi. No: {entity.FaturaNo}", 
+                 CurrentUserId, CurrentUserName, null);
+        }
+    }
+
+    public async Task<FaturaCreateDto> CreateFromPdfAsync(Stream pdfStream)
+    {
+        // Mock processing delay to simulate OCR
+        await Task.Delay(1500);
+
+        // Return mock data
+        return new FaturaCreateDto(
+            "OCR-" + new Random().Next(10000, 99999),
+            1, // Default to first Cari
+            DateTime.Now,
+            "PDF Otomatik Aktarım (Simülasyon)",
+            new List<FaturaKalemiCreateDto>
+            {
+                 new(1, "Ürün 1", 10, 150, 0, 20),
+                 new(2, "Ürün 2", 5, 300, 5, 20)
+            }
+        );
     }
 }

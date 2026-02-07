@@ -102,6 +102,8 @@ export const mockDataService = {
         tamirBekleyenSayisi: urunler.filter(u => u.durum === 'TamirBekliyor').length,
         sonZimmetler: zimmetler.slice(-5).reverse(),
         tamirBekleyenUrunler: urunler.filter(u => u.durum === 'TamirBekliyor'),
+        onaylananTalepler: talepler.filter(t => t.durum === 'Onaylandi'),
+        bakimdakiUrunler: urunler.filter(u => u.durum === 'Bakimda'),
     }),
 
     // Depolar
@@ -133,6 +135,17 @@ export const mockDataService = {
         const newUrun = { ...urun, id: Math.max(...urunler.map(u => u.id)) + 1 };
         urunler.push(newUrun as Urun);
         return newUrun;
+    },
+    updateUrun: (id: number, data: Partial<Urun>) => {
+        const index = urunler.findIndex(u => u.id === id);
+        if (index > -1) {
+            urunler[index] = { ...urunler[index], ...data };
+            return urunler[index];
+        }
+    },
+    deleteUrun: (id: number) => {
+        const index = urunler.findIndex(u => u.id === id);
+        if (index > -1) urunler.splice(index, 1);
     },
 
     // Kategoriler
@@ -210,6 +223,22 @@ export const mockDataService = {
     // Zimmetler  
     getZimmetler: () => [...zimmetler],
     getSonZimmetler: (count: number) => zimmetler.slice(-count).reverse(),
+    addZimmet: (zimmet: Omit<Zimmet, 'id'>) => {
+        const newZimmet = { ...zimmet, id: Math.max(...zimmetler.map(z => z.id)) + 1 };
+        zimmetler.push(newZimmet as Zimmet);
+        return newZimmet;
+    },
+    updateZimmet: (id: number, data: Partial<Zimmet>) => {
+        const index = zimmetler.findIndex(z => z.id === id);
+        if (index > -1) {
+            zimmetler[index] = { ...zimmetler[index], ...data };
+            return zimmetler[index];
+        }
+    },
+    deleteZimmet: (id: number) => {
+        const index = zimmetler.findIndex(z => z.id === id);
+        if (index > -1) zimmetler.splice(index, 1);
+    },
 
     // Bakım Talepleri
     getBakimTalepleri: () => [...bakimTalepleri],
@@ -256,8 +285,18 @@ const roles: Role[] = [
         id: 1,
         name: 'Admin',
         description: 'Sistem yöneticisi - Tüm yetkilere sahip',
-        pagePermissions: ['dashboard', 'depolar', 'urunler', 'faturalar', 'cariler', 'kategoriler', 'personeller', 'zimmetler', 'kullanicilar', 'roller', 'talepler', 'loglar'],
-        entityPermissions: { cari: ['add', 'edit', 'delete'], depo: ['add', 'edit', 'delete'], kategori: ['add', 'edit', 'delete'], kullanici: ['add', 'edit', 'delete'] }
+        pagePermissions: ['dashboard', 'depolar', 'urunler', 'faturalar', 'cariler', 'kategoriler', 'personeller', 'bolumler', 'zimmetler', 'kullanicilar', 'roller', 'talepler', 'loglar'],
+        entityPermissions: {
+            cari: ['add', 'edit', 'delete'],
+            depo: ['add', 'edit', 'delete'],
+            kategori: ['add', 'edit', 'delete'],
+            kullanici: ['add', 'edit', 'delete'],
+            fatura: ['add', 'edit', 'delete'],
+            urun: ['add', 'edit', 'delete'],
+            personel: ['add', 'edit', 'delete'],
+            zimmet: ['add', 'edit', 'delete'],
+            bolum: ['add', 'edit', 'delete']
+        }
     },
     {
         id: 2,
@@ -371,6 +410,33 @@ export const authService = {
     isAdmin: (): boolean => {
         const user = authService.getCurrentUser();
         return user?.roleName === 'Admin';
+    },
+    refreshSession: (): AuthUser | null => {
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser) return null;
+
+        const user = users.find(u => u.username === currentUser.username && u.isActive);
+        if (!user) {
+            authService.logout();
+            return null;
+        }
+
+        const role = roles.find(r => r.id === user.roleId);
+        if (!role) return null;
+
+        const newAuthUser: AuthUser = {
+            id: user.id,
+            username: user.username,
+            fullName: user.fullName,
+            email: user.email,
+            roleId: role.id,
+            roleName: role.name,
+            pagePermissions: role.pagePermissions,
+            entityPermissions: role.entityPermissions
+        };
+
+        localStorage.setItem('currentUser', JSON.stringify(newAuthUser));
+        return newAuthUser;
     }
 };
 
@@ -488,6 +554,10 @@ export const rolesService = {
         { entity: 'depo', label: 'Depolar', actions: ['add', 'edit', 'delete'] },
         { entity: 'kategori', label: 'Kategoriler', actions: ['add', 'edit', 'delete'] },
         { entity: 'kullanici', label: 'Kullanıcılar', actions: ['add', 'edit', 'delete'] },
+        { entity: 'fatura', label: 'Faturalar', actions: ['add', 'edit', 'delete'] },
+        { entity: 'urun', label: 'Ürünler', actions: ['add', 'edit', 'delete'] },
+        { entity: 'personel', label: 'Personeller', actions: ['add', 'edit', 'delete'] },
+        { entity: 'zimmet', label: 'Zimmetler', actions: ['add', 'edit', 'delete'] },
     ]
 };
 

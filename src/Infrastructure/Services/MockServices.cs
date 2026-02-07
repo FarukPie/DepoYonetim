@@ -92,7 +92,8 @@ public class MockUrunService : IUrunService
         var newId = MockData.Urunler.Max(u => u.Id) + 1;
         var entity = new Urun
         {
-            Id = newId, Ad = dto.Ad, KategoriId = dto.KategoriId, DepoId = dto.DepoId,
+            Id = newId, Ad = dto.Ad, Marka = dto.Marka, Model = dto.Model, SeriNumarasi = dto.SeriNumarasi, Barkod = dto.Barkod,
+            KategoriId = dto.KategoriId, DepoId = dto.DepoId,
             EkParcaVar = dto.EkParcaVar, Birim = Enum.Parse<Birim>(dto.Birim),
             Maliyet = dto.Maliyet, KdvOrani = dto.KdvOrani, GarantiSuresiAy = dto.GarantiSuresiAy,
             BozuldugundaBakimTipi = Enum.Parse<BakimTipi>(dto.BozuldugundaBakimTipi),
@@ -108,6 +109,10 @@ public class MockUrunService : IUrunService
         if (entity != null)
         {
             entity.Ad = dto.Ad;
+            entity.Marka = dto.Marka;
+            entity.Model = dto.Model;
+            entity.SeriNumarasi = dto.SeriNumarasi;
+            entity.Barkod = dto.Barkod;
             entity.KategoriId = dto.KategoriId;
             entity.DepoId = dto.DepoId;
             entity.EkParcaVar = dto.EkParcaVar;
@@ -129,11 +134,13 @@ public class MockUrunService : IUrunService
     }
 
     private static UrunDto MapToDto(Urun u) => new(
-        u.Id, u.Ad, u.Barkod, u.KategoriId,
+        u.Id, u.Ad, u.Marka, u.Model, u.SeriNumarasi, u.Barkod, u.KategoriId,
         MockData.Kategoriler.FirstOrDefault(k => k.Id == u.KategoriId)?.Ad,
         u.DepoId, MockData.Depolar.FirstOrDefault(d => d.Id == u.DepoId)?.Ad,
         u.EkParcaVar, u.Birim.ToString(), u.Maliyet, u.KdvOrani,
-        u.GarantiSuresiAy, u.BozuldugundaBakimTipi.ToString(), u.StokMiktari, u.Durum.ToString()
+        u.GarantiSuresiAy, u.BozuldugundaBakimTipi.ToString(),
+        u.SonBakimTarihi, u.KalibrasyonPeriyoduGun,
+        u.StokMiktari, u.Durum.ToString()
     );
 }
 
@@ -185,6 +192,30 @@ public class MockKategoriService : IKategoriService
         var entity = MockData.Kategoriler.FirstOrDefault(k => k.Id == id);
         if (entity != null) MockData.Kategoriler.Remove(entity);
         return Task.CompletedTask;
+    }
+
+
+
+    public Task<IEnumerable<CategoryDto>> GetCategoryTreeAsync()
+    {
+        var allCategories = MockData.Kategoriler;
+        // Use ToLookup to handle null keys (root categories) and missing keys gracefully
+        var categoriesLookup = allCategories.ToLookup(c => c.UstKategoriId);
+
+        List<CategoryDto> BuildTree(int? parentId)
+        {
+            var children = categoriesLookup[parentId];
+
+            return children.Select(c => new CategoryDto(
+                c.Id,
+                c.Ad,
+                c.UstKategoriId,
+                BuildTree(c.Id),
+                MockData.Urunler.Count(u => u.KategoriId == c.Id)
+            )).ToList();
+        }
+
+        return Task.FromResult<IEnumerable<CategoryDto>>(BuildTree(null));
     }
 
     private static KategoriDto MapToDto(Kategori k) => new(
@@ -284,6 +315,7 @@ public class MockCariService : ICariService
         var entity = new Cari
         {
             Id = newId, FirmaAdi = dto.FirmaAdi, Tip = Enum.Parse<CariTipi>(dto.Tip),
+            TicaretSicilNo = dto.TicaretSicilNo,
             VergiNo = dto.VergiNo, VergiDairesi = dto.VergiDairesi, Adres = dto.Adres,
             Il = dto.Il, Ilce = dto.Ilce, Telefon = dto.Telefon, Fax = dto.Fax,
             Email = dto.Email, WebSitesi = dto.WebSitesi, YetkiliKisi = dto.YetkiliKisi,
@@ -300,6 +332,7 @@ public class MockCariService : ICariService
         {
             entity.FirmaAdi = dto.FirmaAdi;
             entity.Tip = Enum.Parse<CariTipi>(dto.Tip);
+            entity.TicaretSicilNo = dto.TicaretSicilNo;
             entity.VergiNo = dto.VergiNo;
             entity.VergiDairesi = dto.VergiDairesi;
             entity.Adres = dto.Adres;
@@ -325,7 +358,7 @@ public class MockCariService : ICariService
     }
 
     private static CariDto MapToDto(Cari c) => new(
-        c.Id, c.FirmaAdi, c.Tip.ToString(), c.VergiNo, c.VergiDairesi, c.Adres,
+        c.Id, c.FirmaAdi, c.Tip.ToString(), c.TicaretSicilNo, c.VergiNo, c.VergiDairesi, c.Adres,
         c.Il, c.Ilce, c.Telefon, c.Fax, c.Email, c.WebSitesi, c.YetkiliKisi,
         c.YetkiliTelefon, c.BankaAdi, c.IbanNo, c.Aktif
     );
@@ -409,6 +442,21 @@ public class MockFaturaService : IFaturaService
             fk.Id, fk.UrunId, fk.UrunAdi, fk.Miktar, fk.BirimFiyat, fk.IndirimOrani, fk.KdvOrani, fk.Toplam
         )).ToList()
     );
+    public Task<FaturaCreateDto> CreateFromPdfAsync(Stream pdfStream)
+    {
+        // Mock processing logic
+        return Task.FromResult(new FaturaCreateDto(
+             "OCR-" + new Random().Next(10000, 99999),
+             1, // Default Cari
+             DateTime.Now,
+             "PDF Otomatik Aktarım (Simülasyon)",
+             new List<FaturaKalemiCreateDto>
+             {
+                 new(1, "Ürün 1", 10, 150, 0, 20),
+                 new(2, "Ürün 2", 5, 300, 5, 20)
+             }
+        ));
+    }
 }
 
 public class MockZimmetService : IZimmetService
@@ -452,6 +500,30 @@ public class MockZimmetService : IZimmetService
         return Task.CompletedTask;
     }
 
+    public Task UpdateAsync(int id, ZimmetUpdateDto dto)
+    {
+        var entity = MockData.Zimmetler.FirstOrDefault(z => z.Id == id);
+        if (entity != null)
+        {
+            entity.UrunId = dto.UrunId;
+            entity.PersonelId = dto.PersonelId;
+            entity.ZimmetTarihi = dto.ZimmetTarihi;
+            entity.Aciklama = dto.Aciklama;
+            if (Enum.TryParse<ZimmetDurum>(dto.Durum, out var durum))
+            {
+                entity.Durum = durum;
+            }
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(int id)
+    {
+        var entity = MockData.Zimmetler.FirstOrDefault(z => z.Id == id);
+        if (entity != null) MockData.Zimmetler.Remove(entity);
+        return Task.CompletedTask;
+    }
+
     private static ZimmetDto MapToDto(Zimmet z) => new(
         z.Id, z.UrunId,
         MockData.Urunler.FirstOrDefault(u => u.Id == z.UrunId)?.Ad ?? "",
@@ -484,16 +556,32 @@ public class MockDashboardService : IDashboardService
         var tamirBekleyenUrunler = MockData.Urunler
             .Where(u => u.Durum == UrunDurum.TamirBekliyor)
             .Select(u => new UrunDto(
-                u.Id, u.Ad, u.Barkod, u.KategoriId,
+                u.Id, u.Ad, u.Marka, u.Model, u.SeriNumarasi, u.Barkod, u.KategoriId,
                 MockData.Kategoriler.FirstOrDefault(k => k.Id == u.KategoriId)?.Ad,
                 u.DepoId, MockData.Depolar.FirstOrDefault(d => d.Id == u.DepoId)?.Ad,
                 u.EkParcaVar, u.Birim.ToString(), u.Maliyet, u.KdvOrani,
-                u.GarantiSuresiAy, u.BozuldugundaBakimTipi.ToString(), u.StokMiktari, u.Durum.ToString()
+                u.GarantiSuresiAy, u.BozuldugundaBakimTipi.ToString(),
+                u.SonBakimTarihi, u.KalibrasyonPeriyoduGun,
+                u.StokMiktari, u.Durum.ToString()
+            )).ToList();
+
+        var bakimdakiUrunList = MockData.Urunler
+            .Where(u => u.Durum == UrunDurum.Bakimda)
+            .Select(u => new UrunDto(
+                u.Id, u.Ad, u.Marka, u.Model, u.SeriNumarasi, u.Barkod, u.KategoriId,
+                MockData.Kategoriler.FirstOrDefault(k => k.Id == u.KategoriId)?.Ad,
+                u.DepoId, MockData.Depolar.FirstOrDefault(d => d.Id == u.DepoId)?.Ad,
+                u.EkParcaVar, u.Birim.ToString(), u.Maliyet, u.KdvOrani,
+                u.GarantiSuresiAy, u.BozuldugundaBakimTipi.ToString(),
+                u.SonBakimTarihi, u.KalibrasyonPeriyoduGun,
+                u.StokMiktari, u.Durum.ToString()
             )).ToList();
 
         return new DashboardDto(
             zimmetliPersoneller, toplamStok, toplamKategori,
-            bakimdakiUrunler, tamirBekleyenler, sonZimmetler, tamirBekleyenUrunler
+            bakimdakiUrunler, tamirBekleyenler, sonZimmetler, tamirBekleyenUrunler,
+            new List<TalepDto>(),
+            bakimdakiUrunList
         );
     }
 }

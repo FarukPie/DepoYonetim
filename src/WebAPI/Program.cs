@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
 // builder.Services.AddOpenApi();
 
 // Configure CORS for frontend
@@ -35,11 +36,13 @@ builder.Services.AddScoped<IPersonelRepository, PersonelRepository>();
 builder.Services.AddScoped<ICariRepository, CariRepository>();
 builder.Services.AddScoped<IFaturaRepository, FaturaRepository>();
 builder.Services.AddScoped<IZimmetRepository, ZimmetRepository>();
+builder.Services.AddScoped<IBolumRepository, BolumRepository>();
 
 // Services
 builder.Services.AddScoped<IDepoService, DepoService>();
 builder.Services.AddScoped<IUrunService, UrunService>();
 builder.Services.AddScoped<IKategoriService, KategoriService>();
+builder.Services.AddScoped<IBolumService, BolumService>();
 builder.Services.AddScoped<IPersonelService, PersonelService>();
 builder.Services.AddScoped<ICariService, CariService>();
 builder.Services.AddScoped<IFaturaService, FaturaService>();
@@ -47,6 +50,7 @@ builder.Services.AddScoped<IZimmetService, ZimmetService>();
 builder.Services.AddScoped<ITalepService, TalepService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<ISystemLogService, SystemLogService>();
+builder.Services.AddScoped<ICurrentUserService, DepoYonetim.WebAPI.Services.CurrentUserService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<DataSeeder>();
 
@@ -55,6 +59,9 @@ var app = builder.Build();
 // Seed Data
 using (var scope = app.Services.CreateScope())
 {
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await context.Database.MigrateAsync();
+    
     var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
     await seeder.SeedAsync();
 }

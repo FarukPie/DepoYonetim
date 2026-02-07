@@ -1,6 +1,9 @@
 using DepoYonetim.Application.DTOs;
 using DepoYonetim.Core.Entities;
 using DepoYonetim.Core.Interfaces;
+using DepoYonetim.Core.Enums;
+using System.Text.Json;
+
 
 namespace DepoYonetim.Application.Services;
 
@@ -9,13 +12,25 @@ public class TalepService : ITalepService
     private readonly IRepository<Talep> _talepRepository;
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<Urun> _urunRepository;
+    private readonly ISystemLogService _logService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public TalepService(IRepository<Talep> talepRepository, IRepository<User> userRepository, IRepository<Urun> urunRepository)
+    public TalepService(
+        IRepository<Talep> talepRepository,
+        IRepository<User> userRepository,
+        IRepository<Urun> urunRepository,
+        ISystemLogService logService,
+        ICurrentUserService currentUserService)
     {
         _talepRepository = talepRepository;
         _userRepository = userRepository;
         _urunRepository = urunRepository;
+        _logService = logService;
+        _currentUserService = currentUserService;
     }
+
+    private int? CurrentUserId => _currentUserService.UserId;
+    private string CurrentUserName => _currentUserService.UserName;
 
     public async Task<IEnumerable<TalepDto>> GetAllAsync(string? durum = null)
     {
@@ -56,20 +71,20 @@ public class TalepService : ITalepService
             TalepEdenUserId = dto.TalepEdenUserId,
             TalepEdenUserName = user.FullName,
             Baslik = dto.Baslik,
-            Detaylar = dto.Detaylar,
-            TalepData = dto.TalepData,
+            Detaylar = dto.Detaylar ?? string.Empty,
+            TalepData = dto.TalepData ?? "{}",
             Durum = "Beklemede",
             OlusturmaTarihi = DateTime.Now
         };
 
         var created = await _talepRepository.AddAsync(talep);
 
-        // Eğer ürünle ilgili bir talepse ürün durumunu güncelle
-        if (dto.TalepTipi == "Bakim" || dto.TalepTipi == "Tamir")
-        {
-             // Basit bir parse işlemi (JSON parse yerine string araması yapıyoruz şimdilik, backend JSON parse için NewtonSoft gerekebilir)
-             // İstenirse buraya daha sağlam JSON parsing eklenebilir.
-        }
+        await _logService.LogAsync(
+             "Create", "Talep", created.Id, 
+             $"Yeni talep oluşturuldu: {created.Baslik}", 
+             CurrentUserId, CurrentUserName, null);
+
+        // Not: Ürün durumu güncelleme on onay aşamasında yapılır.
 
         return MapToDto(created);
     }
@@ -81,14 +96,57 @@ public class TalepService : ITalepService
         if (talep.Durum != "Beklemede") throw new Exception("Talep zaten işlenmiş");
 
         var approver = await _userRepository.GetByIdAsync(onaylayanUserId);
+        if (approver == null) 
+        {
+             // Fallback for hybrid state (Mock Frontend IDs vs Real Backend IDs)
+             var users = await _userRepository.GetAllAsync();
+             approver = users.FirstOrDefault();
+        }
         if (approver == null) throw new Exception("Onaylayan kullanıcı bulunamadı");
 
+        // Ürün durumu güncelleme
+        if (talep.TalepTipi == "Bakim" || talep.TalepTipi == "Tamir")
+        {
+            try 
+            {
+                var talepData = JsonSerializer.Deserialize<JsonElement>(talep.TalepData);
+                if (talepData.TryGetProperty("urunId", out var urunIdProp))
+                {
+                    int urunId = urunIdProp.GetInt32();
+                    var urun = await _urunRepository.GetByIdAsync(urunId);
+                    if (urun != null)
+                    {
+                        if (talep.TalepTipi == "Tamir")
+                        {
+                            urun.Durum = UrunDurum.TamirBekliyor;
+                        }
+                        else if (talep.TalepTipi == "Bakim")
+                        {
+                            urun.Durum = UrunDurum.Bakimda;
+                        }
+                        await _urunRepository.UpdateAsync(urun);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ürün durum güncelleme hatası: {ex.Message}");
+                // Log and continue
+            }
+        }
+
         talep.Durum = "Onaylandi";
-        talep.OnaylayanUserId = onaylayanUserId;
+        talep.OnaylayanUserId = approver.Id; // Use actual ID
         talep.OnaylayanUserName = approver.FullName;
         talep.OnayTarihi = DateTime.Now;
 
         await _talepRepository.UpdateAsync(talep);
+        
+        await _logService.LogAsync(
+             "Approve", "Talep", talep.Id, 
+             $"Talep onaylandı: {talep.Baslik}", 
+             CurrentUserId, CurrentUserName, null);
+
         return MapToDto(talep);
     }
 
@@ -99,16 +157,42 @@ public class TalepService : ITalepService
         if (talep.Durum != "Beklemede") throw new Exception("Talep zaten işlenmiş");
 
         var approver = await _userRepository.GetByIdAsync(onaylayanUserId);
+        if (approver == null) 
+        {
+             // Fallback
+             var users = await _userRepository.GetAllAsync();
+             approver = users.FirstOrDefault();
+        }
         if (approver == null) throw new Exception("Onaylayan kullanıcı bulunamadı");
 
         talep.Durum = "Reddedildi";
-        talep.OnaylayanUserId = onaylayanUserId;
+        talep.OnaylayanUserId = approver.Id;
         talep.OnaylayanUserName = approver.FullName;
         talep.OnayTarihi = DateTime.Now;
         talep.RedNedeni = redNedeni;
 
         await _talepRepository.UpdateAsync(talep);
+        
+        await _logService.LogAsync(
+             "Reject", "Talep", talep.Id, 
+             $"Talep reddedildi: {talep.Baslik}. Neden: {redNedeni}", 
+             CurrentUserId, CurrentUserName, null);
+
         return MapToDto(talep);
+    }
+    
+    public async Task DeleteAsync(int id)
+    {
+        var talep = await _talepRepository.GetByIdAsync(id);
+        if (talep != null)
+        {
+            await _talepRepository.DeleteAsync(id);
+            
+            await _logService.LogAsync(
+                 "Delete", "Talep", id, 
+                 $"Talep silindi: {talep.Baslik}", 
+                 CurrentUserId, CurrentUserName, null);
+        }
     }
 
     public async Task<int> GetBekleyenSayisiAsync()

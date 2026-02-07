@@ -19,6 +19,45 @@ namespace DepoYonetim.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "8.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
+            modelBuilder.Entity("DepoYonetim.Core.Entities.Bolum", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("Aciklama")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Ad")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Kod")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Tip")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("UstBolumId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UstBolumId");
+
+                    b.ToTable("Bolumler");
+                });
+
             modelBuilder.Entity("DepoYonetim.Core.Entities.Cari", b =>
                 {
                     b.Property<int>("Id")
@@ -60,6 +99,9 @@ namespace DepoYonetim.Infrastructure.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Telefon")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("TicaretSicilNo")
                         .HasColumnType("longtext");
 
                     b.Property<int>("Tip")
@@ -483,6 +525,9 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<int?>("KalibrasyonPeriyoduGun")
+                        .HasColumnType("int");
+
                     b.Property<int>("KategoriId")
                         .HasColumnType("int");
 
@@ -491,6 +536,18 @@ namespace DepoYonetim.Infrastructure.Migrations
 
                     b.Property<decimal>("Maliyet")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Marka")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Model")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("SeriNumarasi")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("SonBakimTarihi")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("StokMiktari")
                         .HasColumnType("int");
@@ -591,6 +648,15 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.ToTable("Zimmetler");
                 });
 
+            modelBuilder.Entity("DepoYonetim.Core.Entities.Bolum", b =>
+                {
+                    b.HasOne("DepoYonetim.Core.Entities.Bolum", "UstBolum")
+                        .WithMany("AltBolumler")
+                        .HasForeignKey("UstBolumId");
+
+                    b.Navigation("UstBolum");
+                });
+
             modelBuilder.Entity("DepoYonetim.Core.Entities.Depo", b =>
                 {
                     b.HasOne("DepoYonetim.Core.Entities.Personel", "SorumluPersonel")
@@ -671,6 +737,11 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Navigation("Personel");
 
                     b.Navigation("Urun");
+                });
+
+            modelBuilder.Entity("DepoYonetim.Core.Entities.Bolum", b =>
+                {
+                    b.Navigation("AltBolumler");
                 });
 
             modelBuilder.Entity("DepoYonetim.Core.Entities.Cari", b =>

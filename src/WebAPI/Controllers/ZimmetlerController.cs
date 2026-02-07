@@ -49,4 +49,18 @@ public class ZimmetlerController : ControllerBase
         await _zimmetService.IadeEtAsync(id);
         return NoContent();
     }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] ZimmetUpdateDto dto)
+    {
+        await _zimmetService.UpdateAsync(id, dto);
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await _zimmetService.DeleteAsync(id);
+        return NoContent();
+    }
 }

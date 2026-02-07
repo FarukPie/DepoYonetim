@@ -29,6 +29,9 @@ public record DepoUpdateDto(
 public record UrunDto(
     int Id,
     string Ad,
+    string? Marka,
+    string? Model,
+    string? SeriNumarasi,
     string? Barkod,
     int KategoriId,
     string? KategoriAdi,
@@ -40,12 +43,18 @@ public record UrunDto(
     decimal KdvOrani,
     int GarantiSuresiAy,
     string BozuldugundaBakimTipi,
+    DateTime? SonBakimTarihi,
+    int? KalibrasyonPeriyoduGun,
     int StokMiktari,
     string Durum
 );
 
 public record UrunCreateDto(
     string Ad,
+    string? Marka,
+    string? Model,
+    string? SeriNumarasi,
+    string? Barkod,
     int KategoriId,
     int? DepoId,
     bool EkParcaVar,
@@ -54,7 +63,10 @@ public record UrunCreateDto(
     decimal KdvOrani,
     int GarantiSuresiAy,
     string BozuldugundaBakimTipi,
-    int StokMiktari
+    DateTime? SonBakimTarihi,
+    int? KalibrasyonPeriyoduGun,
+    int StokMiktari,
+    string? Durum
 );
 
 // ===== KATEGORI DTOs =====
@@ -72,6 +84,14 @@ public record KategoriCreateDto(
     string Ad,
     string? Aciklama,
     int? UstKategoriId
+);
+
+public record CategoryDto(
+    int Id,
+    string Name,
+    int? ParentId,
+    List<CategoryDto> SubCategories,
+    int ProductCount
 );
 
 // ===== PERSONEL DTOs =====
@@ -106,6 +126,7 @@ public record CariDto(
     int Id,
     string FirmaAdi,
     string Tip,
+    string? TicaretSicilNo,
     string? VergiNo,
     string? VergiDairesi,
     string? Adres,
@@ -125,6 +146,7 @@ public record CariDto(
 public record CariCreateDto(
     string FirmaAdi,
     string Tip,
+    string? TicaretSicilNo,
     string? VergiNo,
     string? VergiDairesi,
     string? Adres,
@@ -203,6 +225,14 @@ public record ZimmetCreateDto(
     string? Aciklama
 );
 
+public record ZimmetUpdateDto(
+    int UrunId,
+    int PersonelId,
+    DateTime ZimmetTarihi,
+    string Durum,
+    string? Aciklama
+);
+
 // ===== DASHBOARD DTOs =====
 public record DashboardDto(
     int ZimmetliCalisanSayisi,
@@ -211,7 +241,9 @@ public record DashboardDto(
     int BakimdakiUrunSayisi,
     int TamirBekleyenSayisi,
     List<ZimmetDto> SonZimmetler,
-    List<UrunDto> TamirBekleyenUrunler
+    List<UrunDto> TamirBekleyenUrunler,
+    List<TalepDto> OnaylananTalepler,
+    List<UrunDto> BakimdakiUrunler
 );
 
 // ===== TALEP DTOs =====
@@ -237,4 +269,22 @@ public record CreateTalepDto(
     string Baslik,
     string? Detaylar,
     string? TalepData
+);
+
+public record BolumDto(
+    int Id,
+    string Name,
+    string Code,
+    string Type,
+    int? ParentId,
+    List<BolumDto> SubLocations,
+    string? Description
+);
+
+public record BolumCreateDto(
+    string Ad,
+    string Kod,
+    string Tip,
+    int? UstBolumId,
+    string? Aciklama
 );

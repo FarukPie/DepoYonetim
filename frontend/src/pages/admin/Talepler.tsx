@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileCheck, Check, X, Eye, Filter, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { FileCheck, Check, X, Filter, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { taleplerService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Talep } from '../../types';
@@ -7,10 +7,8 @@ import { Talep } from '../../types';
 export default function Talepler() {
     const { user } = useAuth();
     const [talepler, setTalepler] = useState<Talep[]>([]);
-    const [durumFilter, setDurumFilter] = useState<string>('');
+    const [durumFilter, setDurumFilter] = useState<string>('Beklemede');
     const [selectedTalep, setSelectedTalep] = useState<Talep | null>(null);
-    const [showRejectModal, setShowRejectModal] = useState(false);
-    const [redNedeni, setRedNedeni] = useState('');
 
     useEffect(() => {
         loadData();
@@ -26,37 +24,34 @@ export default function Talepler() {
     };
 
     const handleOnayla = async (talep: Talep) => {
-        if (user) {
-            try {
-                await taleplerService.onayla(talep.id, user.id);
-                loadData();
-                setSelectedTalep(null);
-            } catch (error) {
-                console.error('Onaylama hatası:', error);
-                alert('Onaylama sırasında bir hata oluştu.');
+        if (window.confirm('Bu talebi onaylamak istediğinize emin misiniz?')) {
+            if (user) {
+                try {
+                    await taleplerService.onayla(talep.id, user.id);
+                    loadData();
+                    setSelectedTalep(null);
+                } catch (error) {
+                    console.error('Onaylama hatası:', error);
+                    alert('Onaylama sırasında bir hata oluştu.');
+                }
             }
         }
     };
 
-    const handleReddet = async () => {
-        if (!selectedTalep || !redNedeni.trim()) return;
-        if (user) {
-            try {
-                await taleplerService.reddet(selectedTalep.id, user.id, redNedeni);
-                loadData();
-                setSelectedTalep(null);
-                setShowRejectModal(false);
-                setRedNedeni('');
-            } catch (error) {
-                console.error('Reddetme hatası:', error);
-                alert('Reddetme sırasında bir hata oluştu.');
+    // Silme Fonksiyonu
+    const handleDelete = async (talep: Talep) => {
+        if (window.confirm('Bu talebi silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+            if (user) {
+                try {
+                    await taleplerService.delete(talep.id);
+                    loadData();
+                    setSelectedTalep(null);
+                } catch (error) {
+                    console.error('Silme işlemi hatası:', error);
+                    alert('İşlem sırasında bir hata oluştu.');
+                }
             }
         }
-    };
-
-    const openRejectModal = (talep: Talep) => {
-        setSelectedTalep(talep);
-        setShowRejectModal(true);
     };
 
     const getDurumBadge = (durum: string) => {
@@ -119,21 +114,6 @@ export default function Talepler() {
 
     return (
         <>
-            <header className="page-header">
-                <div>
-                    <h1>
-                        <FileCheck size={28} style={{ marginRight: '12px', verticalAlign: 'middle' }} />
-                        Talepler
-                        {bekleyenSayisi > 0 && (
-                            <span className="badge badge-warning" style={{ marginLeft: '12px', fontSize: '0.875rem' }}>
-                                {bekleyenSayisi} Beklemede
-                            </span>
-                        )}
-                    </h1>
-                    <p>Kullanıcı taleplerini yönetin</p>
-                </div>
-            </header>
-
             <div className="page-content">
                 {/* Filter */}
                 <div className="card" style={{ marginBottom: 'var(--spacing-lg)' }}>
@@ -150,6 +130,11 @@ export default function Talepler() {
                             <option value="Onaylandi">Onaylandı</option>
                             <option value="Reddedildi">Reddedildi</option>
                         </select>
+                        {bekleyenSayisi > 0 && (
+                            <span className="badge badge-warning" style={{ marginLeft: 'auto', fontSize: '0.875rem' }}>
+                                {bekleyenSayisi} Beklemede
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -170,7 +155,7 @@ export default function Talepler() {
                             <tbody>
                                 {talepler.length > 0 ? (
                                     talepler.map((talep) => (
-                                        <tr key={talep.id}>
+                                        <tr key={talep.id} onClick={() => setSelectedTalep(talep)} style={{ cursor: 'pointer' }}>
                                             <td>
                                                 <div style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                                                     {talep.baslik}
@@ -191,31 +176,22 @@ export default function Talepler() {
                                                 </span>
                                             </td>
                                             <td>
-                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-xs)' }}>
-                                                    <button
-                                                        className="btn btn-outline"
-                                                        onClick={() => setSelectedTalep(talep)}
-                                                        title="Detay"
-                                                    >
-                                                        <Eye size={16} />
-                                                    </button>
+                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-xs)' }} onClick={(e) => e.stopPropagation()}>
                                                     {talep.durum === 'Beklemede' && (
                                                         <>
                                                             <button
-                                                                className="btn btn-primary"
+                                                                className="btn btn-icon btn-success"
                                                                 onClick={() => handleOnayla(talep)}
                                                                 title="Onayla"
-                                                                style={{ padding: '8px 12px' }}
                                                             >
                                                                 <Check size={16} />
                                                             </button>
                                                             <button
-                                                                className="btn btn-outline"
-                                                                onClick={() => openRejectModal(talep)}
-                                                                title="Reddet"
-                                                                style={{ color: 'var(--accent-error)' }}
+                                                                className="btn btn-icon btn-danger"
+                                                                onClick={() => handleDelete(talep)}
+                                                                title="Sil"
                                                             >
-                                                                <X size={16} />
+                                                                <Trash2 size={16} />
                                                             </button>
                                                         </>
                                                     )}
@@ -237,14 +213,12 @@ export default function Talepler() {
             </div>
 
             {/* Detail Modal */}
-            {selectedTalep && !showRejectModal && (
+            {selectedTalep && (
                 <div className="modal-overlay" onClick={() => setSelectedTalep(null)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
                         <div className="modal-header">
                             <h2>Talep Detayı</h2>
-                            <button className="btn btn-outline" onClick={() => setSelectedTalep(null)}>
-                                <X size={18} />
-                            </button>
+                            <button className="modal-close" onClick={() => setSelectedTalep(null)}><X size={20} /></button>
                         </div>
                         <div className="modal-body">
                             <div style={{ marginBottom: 'var(--spacing-md)' }}>
@@ -295,9 +269,9 @@ export default function Talepler() {
                         <div className="modal-footer">
                             {selectedTalep.durum === 'Beklemede' ? (
                                 <>
-                                    <button className="btn btn-outline" onClick={() => openRejectModal(selectedTalep)} style={{ color: 'var(--accent-error)' }}>
+                                    <button className="btn btn-danger" onClick={() => handleDelete(selectedTalep)}>
                                         <X size={18} />
-                                        <span>Reddet</span>
+                                        <span>Sil</span>
                                     </button>
                                     <button className="btn btn-primary" onClick={() => handleOnayla(selectedTalep)}>
                                         <Check size={18} />
@@ -309,50 +283,6 @@ export default function Talepler() {
                                     Kapat
                                 </button>
                             )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Reject Modal */}
-            {showRejectModal && selectedTalep && (
-                <div className="modal-overlay" onClick={() => { setShowRejectModal(false); setRedNedeni(''); }}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-                        <div className="modal-header">
-                            <h2>Talep Reddet</h2>
-                            <button className="btn btn-outline" onClick={() => { setShowRejectModal(false); setRedNedeni(''); }}>
-                                <X size={18} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <p style={{ marginBottom: 'var(--spacing-md)' }}>
-                                <strong>"{selectedTalep.baslik}"</strong> talebini reddetmek istediğinize emin misiniz?
-                            </p>
-                            <div className="form-group">
-                                <label className="form-label">Red Nedeni *</label>
-                                <textarea
-                                    className="form-input"
-                                    value={redNedeni}
-                                    onChange={(e) => setRedNedeni(e.target.value)}
-                                    placeholder="Red nedenini açıklayın..."
-                                    rows={3}
-                                    required
-                                />
-                            </div>
-                        </div>
-                        <div className="modal-footer">
-                            <button className="btn btn-outline" onClick={() => { setShowRejectModal(false); setRedNedeni(''); }}>
-                                İptal
-                            </button>
-                            <button
-                                className="btn btn-primary"
-                                onClick={handleReddet}
-                                disabled={!redNedeni.trim()}
-                                style={{ backgroundColor: 'var(--accent-error)' }}
-                            >
-                                <X size={18} />
-                                <span>Reddet</span>
-                            </button>
                         </div>
                     </div>
                 </div>

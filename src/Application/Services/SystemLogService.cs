@@ -72,18 +72,26 @@ public class SystemLogService : ISystemLogService
 
     public async Task LogAsync(string action, string entityType, int? entityId, string details, int? userId, string userName, string? ipAddress)
     {
-        var log = new SystemLog
+        try 
         {
-            Action = action,
-            EntityType = entityType,
-            EntityId = entityId,
-            Details = details,
-            UserId = userId,
-            UserName = userName,
-            IpAddress = ipAddress,
-            Timestamp = DateTime.Now
-        };
+            var log = new SystemLog
+            {
+                Action = action,
+                EntityType = entityType,
+                EntityId = entityId,
+                Details = details,
+                UserId = userId,
+                UserName = userName,
+                IpAddress = ipAddress,
+                Timestamp = DateTime.Now
+            };
 
-        await _logRepository.AddAsync(log);
+            await _logRepository.AddAsync(log);
+        }
+        catch (Exception ex)
+        {
+            // Logging failed, but we shouldn't fail the operation
+            Console.WriteLine($"LOGGING ERROR: {ex.Message}");
+        }
     }
 }

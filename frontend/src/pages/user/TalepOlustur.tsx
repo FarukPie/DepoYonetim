@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { PlusCircle, Send, Clock, CheckCircle, XCircle } from 'lucide-react';
-import { taleplerService, authService } from '../../services/mockData';
+import { taleplerService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { Talep, TalepCreate, TalepTipi } from '../../types';
 
 export default function TalepOlustur() {
+    const { user } = useAuth();
     const [myTalepler, setMyTalepler] = useState<Talep[]>([]);
     const [showForm, setShowForm] = useState(false);
     const [formData, setFormData] = useState({
@@ -13,13 +15,20 @@ export default function TalepOlustur() {
         talepData: {} as Record<string, string>
     });
 
-    const currentUser = authService.getCurrentUser();
-
     useEffect(() => {
-        if (currentUser) {
-            setMyTalepler(taleplerService.getByUser(currentUser.id));
+        loadData();
+    }, [user]);
+
+    const loadData = async () => {
+        if (user) {
+            try {
+                const data = await taleplerService.getByUser(user.id);
+                setMyTalepler(data);
+            } catch (error) {
+                console.error("Talepler yüklenirken hata:", error);
+            }
         }
-    }, []);
+    };
 
     const talepTipleri = [
         { value: 'CariEkleme', label: 'Cari Ekleme', fields: ['firmaAdi', 'tip', 'vergiNo', 'il'] },
@@ -29,27 +38,33 @@ export default function TalepOlustur() {
 
     const selectedTip = talepTipleri.find(t => t.value === formData.talepTipi);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!currentUser) return;
+        if (!user) return;
 
         const talepCreate: TalepCreate = {
             talepTipi: formData.talepTipi,
-            talepEdenUserId: currentUser.id,
+            talepEdenUserId: user.id,
             baslik: formData.baslik,
             detaylar: formData.detaylar,
             talepData: JSON.stringify(formData.talepData)
         };
 
-        taleplerService.create(talepCreate);
-        setMyTalepler(taleplerService.getByUser(currentUser.id));
-        setShowForm(false);
-        setFormData({
-            talepTipi: 'CariEkleme',
-            baslik: '',
-            detaylar: '',
-            talepData: {}
-        });
+        try {
+            await taleplerService.create(talepCreate);
+            await loadData();
+            setShowForm(false);
+            setFormData({
+                talepTipi: 'CariEkleme',
+                baslik: '',
+                detaylar: '',
+                talepData: {}
+            });
+            alert('Talep başarıyla oluşturuldu.');
+        } catch (error) {
+            console.error("Talep oluşturma hatası:", error);
+            alert('Talep oluşturulurken bir hata oluştu.');
+        }
     };
 
     const handleDataFieldChange = (field: string, value: string) => {
@@ -99,23 +114,17 @@ export default function TalepOlustur() {
 
     return (
         <>
-            <header className="page-header">
-                <div>
-                    <h1>
-                        <PlusCircle size={28} style={{ marginRight: '12px', verticalAlign: 'middle' }} />
-                        Talep Oluştur
-                    </h1>
-                    <p>Yeni ekleme/düzenleme talepleri oluşturun</p>
-                </div>
-                {!showForm && (
-                    <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-                        <PlusCircle size={18} />
-                        <span>Yeni Talep</span>
-                    </button>
-                )}
-            </header>
+
 
             <div className="page-content">
+                {!showForm && (
+                    <div className="toolbar" style={{ justifyContent: 'flex-end' }}>
+                        <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+                            <PlusCircle size={18} />
+                            <span>Yeni Talep</span>
+                        </button>
+                    </div>
+                )}
                 {/* Info Banner */}
                 <div className="card" style={{ marginBottom: 'var(--spacing-lg)', backgroundColor: 'var(--bg-tertiary)', borderLeft: '4px solid var(--accent-info)' }}>
                     <p style={{ margin: 0, color: 'var(--text-secondary)' }}>

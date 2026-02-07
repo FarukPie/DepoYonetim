@@ -3,7 +3,7 @@ export type Birim = 'Adet' | 'Kg' | 'Kutu';
 export type BakimTipi = 'Kalibrasyon' | 'Bakim';
 export type CariTipi = 'Tedarikci' | 'Musteri';
 export type ZimmetDurum = 'Aktif' | 'Iade' | 'Kayip';
-export type UrunDurum = 'Aktif' | 'Bakimda' | 'TamirBekliyor' | 'Hurda';
+export type UrunDurum = 'Aktif' | 'Bakimda' | 'TamirBekliyor' | 'Hurda' | 'Zimmetli';
 
 // ===== DEPO =====
 export interface Depo {
@@ -38,12 +38,21 @@ export interface Urun {
   kdvOrani: number;
   garantiSuresiAy: number;
   bozuldugundaBakimTipi: BakimTipi;
+  sonBakimTarihi?: string;
+  kalibrasyonPeriyoduGun?: number;
   stokMiktari: number;
   durum: UrunDurum;
+  marka?: string;
+  model?: string;
+  seriNumarasi?: string;
 }
 
 export interface UrunCreate {
   ad: string;
+  marka?: string;
+  model?: string;
+  seriNumarasi?: string;
+  barkod?: string;
   kategoriId: number;
   depoId?: number;
   ekParcaVar: boolean;
@@ -70,6 +79,14 @@ export interface KategoriCreate {
   ad: string;
   aciklama?: string;
   ustKategoriId?: number;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  parentId?: number;
+  subCategories: Category[];
+  productCount: number;
 }
 
 // ===== PERSONEL =====
@@ -104,6 +121,7 @@ export interface Cari {
   id: number;
   firmaAdi: string;
   tip: CariTipi;
+  ticaretSicilNo?: string;
   vergiNo?: string;
   vergiDairesi?: string;
   adres?: string;
@@ -123,6 +141,7 @@ export interface Cari {
 export interface CariCreate {
   firmaAdi: string;
   tip: string;
+  ticaretSicilNo?: string;
   vergiNo?: string;
   vergiDairesi?: string;
   adres?: string;
@@ -210,6 +229,8 @@ export interface Dashboard {
   tamirBekleyenSayisi: number;
   sonZimmetler: Zimmet[];
   tamirBekleyenUrunler: Urun[];
+  onaylananTalepler: Talep[];
+  bakimdakiUrunler: Urun[];
 }
 
 // ===== AUTH =====
@@ -332,3 +353,15 @@ export interface SystemLog {
   ipAddress?: string;
 }
 
+// ===== LOCATION (BOLUM) =====
+export type LocationType = 'Bina' | 'Kat' | 'Koridor' | 'Oda' | 'Depo';
+
+export interface Location {
+  id: number;
+  name: string;
+  code: string;
+  type: string;
+  parentId?: number;
+  subLocations?: Location[];
+  description?: string;
+}

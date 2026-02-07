@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Personel, Urun, Depo, Kategori } from '../types';
+import { Personel, Urun, Depo, Kategori, Location } from '../types';
 
 // API Base URL - Backend adresinizle eşleşmeli
 const API_URL = 'http://localhost:5108/api';
@@ -92,6 +92,10 @@ export const kategoriService = {
     },
     delete: async (id: number) => {
         await api.delete(`/kategoriler/${id}`);
+    },
+    getTree: async () => {
+        const response = await api.get<any[]>('/kategoriler/tree'); // any[] because types might not be reloaded yet, or use Category[]
+        return response.data;
     }
 };
 
@@ -130,6 +134,14 @@ export const faturaService = {
     },
     delete: async (id: number) => {
         await api.delete(`/faturalar/${id}`);
+    },
+    uploadPdf: async (file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post('/faturalar/upload-pdf', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
     }
 };
 
@@ -217,6 +229,9 @@ export const taleplerService = {
     getBekleyenSayisi: async () => {
         const response = await api.get<number>('/talepler/bekleyen-sayisi');
         return response.data;
+    },
+    delete: async (id: number) => {
+        await api.delete(`/talepler/${id}`);
     }
 };
 
@@ -240,6 +255,33 @@ export const userService = {
     },
     delete: async (id: number) => {
         await api.delete(`/users/${id}`);
+    }
+};
+
+// Bolum Servisi
+export const bolumService = {
+    getTree: async () => {
+        const response = await api.get<Location[]>('/bolumler/tree'); // Location type needs to be imported if strictly checked but usually fine here
+        return response.data;
+    },
+    getAll: async () => {
+        const response = await api.get('/bolumler');
+        return response.data;
+    },
+    getById: async (id: number) => {
+        const response = await api.get(`/bolumler/${id}`);
+        return response.data;
+    },
+    create: async (data: any) => {
+        const response = await api.post('/bolumler', data);
+        return response.data;
+    },
+    update: async (id: number, data: any) => {
+        const response = await api.put(`/bolumler/${id}`, data);
+        return response.data;
+    },
+    delete: async (id: number) => {
+        await api.delete(`/bolumler/${id}`);
     }
 };
 

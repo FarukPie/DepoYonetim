@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { FileText, Filter, Search } from 'lucide-react';
+import { FileText, Filter, LogIn, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { logService, userService } from '../../services/api';
 import { SystemLog, User } from '../../types';
+import { DataTable, Column } from '../../components/shared/DataTable';
 
 export default function Loglar() {
     const [logs, setLogs] = useState<SystemLog[]>([]);
@@ -78,160 +79,144 @@ export default function Loglar() {
     const actions = ['Login', 'Logout', 'Create', 'Update', 'Delete', 'Approve', 'Reject'];
     const entityTypes = ['Personel', 'Urun', 'Depo', 'Kategori', 'Cari', 'Fatura', 'Zimmet', 'Talep', 'User', 'Role'];
 
+    const columns: Column<SystemLog>[] = [
+        {
+            header: 'Tarih',
+            render: (log) => (
+                <span style={{ whiteSpace: 'nowrap' }}>
+                    {new Date(log.timestamp).toLocaleString('tr-TR')}
+                </span>
+            )
+        },
+        { header: 'Kullanıcı', accessor: 'userName' },
+        {
+            header: 'İşlem',
+            render: (log) => (
+                <span className={`badge ${getActionBadge(log.action)}`}>
+                    {getActionLabel(log.action)}
+                </span>
+            )
+        },
+        {
+            header: 'Varlık',
+            render: (log) => (
+                <span className="badge badge-neutral">
+                    {log.entityType}
+                    {log.entityId && ` #${log.entityId}`}
+                </span>
+            )
+        },
+        {
+            header: 'Detay',
+            render: (log) => (
+                <span style={{ color: 'var(--text-muted)', maxWidth: '300px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.details}>
+                    {log.details}
+                </span>
+            )
+        }
+    ];
+
     return (
         <>
-            <header className="page-header">
-                <div>
-                    <h1>
-                        <FileText size={28} style={{ marginRight: '12px', verticalAlign: 'middle' }} />
-                        Sistem Logları
-                    </h1>
-                    <p>Sistemdeki tüm aktivitelerin kaydı</p>
-                </div>
-            </header>
-
             <div className="page-content">
-                {/* Filters */}
-                <div className="card" style={{ marginBottom: 'var(--spacing-lg)' }}>
-                    <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
-                            <Search style={{
-                                position: 'absolute',
-                                left: '12px',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                color: 'var(--text-muted)',
-                                width: '18px',
-                                height: '18px'
-                            }} />
-                            <input
-                                type="text"
-                                className="form-input"
-                                placeholder="Log ara..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ paddingLeft: '40px' }}
-                            />
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                            <Filter size={18} style={{ color: 'var(--text-muted)' }} />
-                            <select
-                                className="form-input"
-                                value={filters.action}
-                                onChange={(e) => setFilters({ ...filters, action: e.target.value })}
-                                style={{ minWidth: '130px' }}
-                            >
-                                <option value="">Tüm İşlemler</option>
-                                {actions.map(action => (
-                                    <option key={action} value={action}>{getActionLabel(action)}</option>
-                                ))}
-                            </select>
-                            <select
-                                className="form-input"
-                                value={filters.entityType}
-                                onChange={(e) => setFilters({ ...filters, entityType: e.target.value })}
-                                style={{ minWidth: '130px' }}
-                            >
-                                <option value="">Tüm Varlıklar</option>
-                                {entityTypes.map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                ))}
-                            </select>
-                            <select
-                                className="form-input"
-                                value={filters.userId}
-                                onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
-                                style={{ minWidth: '150px' }}
-                            >
-                                <option value="">Tüm Kullanıcılar</option>
-                                {users.map(user => (
-                                    <option key={user.id} value={user.id}>{user.fullName}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
                 {/* Stats */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
+                <div className="dashboard-grid" style={{ marginBottom: 'var(--spacing-lg)' }}>
                     <div className="stat-card">
-                        <div className="stat-card-value">{logs.length}</div>
-                        <div className="stat-card-label">Toplam Log</div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-card-value" style={{ color: 'var(--accent-info)' }}>
-                            {logs.filter(l => l.action === 'Login').length}
+                        <div className="stat-card-icon">
+                            <FileText size={24} style={{ color: 'var(--text-muted)' }} />
                         </div>
-                        <div className="stat-card-label">Giriş</div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-card-value" style={{ color: 'var(--accent-success)' }}>
-                            {logs.filter(l => l.action === 'Create').length}
+                        <div className="stat-card-content">
+                            <div className="stat-card-value">{logs.length}</div>
+                            <div className="stat-card-label">Toplam Log</div>
                         </div>
-                        <div className="stat-card-label">Ekleme</div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-card-value" style={{ color: 'var(--accent-warning)' }}>
-                            {logs.filter(l => l.action === 'Update').length}
+                    <div className="stat-card info">
+                        <div className="stat-card-icon info">
+                            <LogIn size={24} />
                         </div>
-                        <div className="stat-card-label">Güncelleme</div>
+                        <div className="stat-card-content">
+                            <div className="stat-card-value">{logs.filter(l => l.action === 'Login').length}</div>
+                            <div className="stat-card-label">Giriş</div>
+                        </div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-card-value" style={{ color: 'var(--accent-error)' }}>
-                            {logs.filter(l => l.action === 'Delete').length}
+                    <div className="stat-card success">
+                        <div className="stat-card-icon success">
+                            <PlusCircle size={24} />
                         </div>
-                        <div className="stat-card-label">Silme</div>
+                        <div className="stat-card-content">
+                            <div className="stat-card-value">{logs.filter(l => l.action === 'Create').length}</div>
+                            <div className="stat-card-label">Ekleme</div>
+                        </div>
+                    </div>
+                    <div className="stat-card warning">
+                        <div className="stat-card-icon warning">
+                            <Edit size={24} />
+                        </div>
+                        <div className="stat-card-content">
+                            <div className="stat-card-value">{logs.filter(l => l.action === 'Update').length}</div>
+                            <div className="stat-card-label">Güncelleme</div>
+                        </div>
+                    </div>
+                    <div className="stat-card error">
+                        <div className="stat-card-icon error">
+                            <Trash2 size={24} />
+                        </div>
+                        <div className="stat-card-content">
+                            <div className="stat-card-value">{logs.filter(l => l.action === 'Delete').length}</div>
+                            <div className="stat-card-label">Silme</div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Table */}
-                <div className="card">
-                    <div className="table-container">
-                        <table className="table">
-                            <thead>
-                                <tr>
-                                    <th>Tarih</th>
-                                    <th>Kullanıcı</th>
-                                    <th>İşlem</th>
-                                    <th>Varlık</th>
-                                    <th>Detay</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredLogs.length > 0 ? (
-                                    filteredLogs.map((log) => (
-                                        <tr key={log.id}>
-                                            <td style={{ whiteSpace: 'nowrap' }}>
-                                                {new Date(log.timestamp).toLocaleString('tr-TR')}
-                                            </td>
-                                            <td style={{ color: 'var(--text-primary)' }}>{log.userName}</td>
-                                            <td>
-                                                <span className={`badge ${getActionBadge(log.action)}`}>
-                                                    {getActionLabel(log.action)}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span className="badge badge-neutral">
-                                                    {log.entityType}
-                                                    {log.entityId && ` #${log.entityId}`}
-                                                </span>
-                                            </td>
-                                            <td style={{ color: 'var(--text-muted)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                {log.details}
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 'var(--spacing-xl)' }}>
-                                            Log bulunamadı
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <DataTable
+                    title="Sistem Logları"
+                    columns={columns}
+                    data={filteredLogs}
+                    searchable={true}
+                    onSearch={setSearchTerm}
+                    searchPlaceholder="Log ara..."
+                    emptyMessage="Log bulunamadı."
+                    extraToolbarContent={
+                        <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                                <Filter size={18} style={{ color: 'var(--text-muted)' }} />
+                                <select
+                                    className="form-input"
+                                    value={filters.action}
+                                    onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+                                    style={{ minWidth: '130px' }}
+                                >
+                                    <option value="">Tüm İşlemler</option>
+                                    {actions.map(action => (
+                                        <option key={action} value={action}>{getActionLabel(action)}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    className="form-input"
+                                    value={filters.entityType}
+                                    onChange={(e) => setFilters({ ...filters, entityType: e.target.value })}
+                                    style={{ minWidth: '130px' }}
+                                >
+                                    <option value="">Tüm Varlıklar</option>
+                                    {entityTypes.map(type => (
+                                        <option key={type} value={type}>{type}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    className="form-input"
+                                    value={filters.userId}
+                                    onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
+                                    style={{ minWidth: '150px' }}
+                                >
+                                    <option value="">Tüm Kullanıcılar</option>
+                                    {users.map(user => (
+                                        <option key={user.id} value={user.id}>{user.fullName}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </>
+                    }
+                />
             </div>
         </>
     );

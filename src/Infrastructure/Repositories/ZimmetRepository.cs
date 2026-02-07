@@ -11,6 +11,23 @@ public class ZimmetRepository : EfRepository<Zimmet>, IZimmetRepository
     {
     }
 
+    public override async Task<IEnumerable<Zimmet>> GetAllAsync()
+    {
+        return await _context.Zimmetler
+            .Include(z => z.Urun)
+            .Include(z => z.Personel)
+            .OrderByDescending(z => z.CreatedAt)
+            .ToListAsync();
+    }
+
+    public override async Task<Zimmet?> GetByIdAsync(int id)
+    {
+        return await _context.Zimmetler
+            .Include(z => z.Urun)
+            .Include(z => z.Personel)
+            .FirstOrDefaultAsync(z => z.Id == id);
+    }
+
     public async Task<IEnumerable<Zimmet>> GetSonZimmetlerAsync(int count)
     {
         return await _context.Zimmetler

@@ -1,6 +1,8 @@
+using DepoYonetim.Application.Services;
 using DepoYonetim.Core.Entities;
 using DepoYonetim.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace DepoYonetim.WebAPI.Controllers;
 
@@ -8,6 +10,18 @@ namespace DepoYonetim.WebAPI.Controllers;
 [Route("api/[controller]")]
 public class UsersController : ControllerBase
 {
+    private readonly ISystemLogService _logService;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    public UsersController(ISystemLogService logService, IHttpContextAccessor httpContextAccessor)
+    {
+        _logService = logService;
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    private int? CurrentUserId => int.TryParse(_httpContextAccessor.HttpContext?.User?.FindFirst("Id")?.Value, out var id) ? id : null;
+    private string CurrentUserName => _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "System";
+
     public record UserDto(
         int Id,
         string Username,
@@ -74,7 +88,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost]
-    public ActionResult<UserDto> Create([FromBody] CreateUserRequest request)
+    public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserRequest request)
     {
         // Check if username already exists
         if (MockData.Users.Any(u => u.Username == request.Username))
@@ -97,15 +111,10 @@ public class UsersController : ControllerBase
         MockData.Users.Add(newUser);
 
         // Log the action
-        MockData.SystemLogs.Add(new SystemLog
-        {
-            Id = MockData.SystemLogs.Count > 0 ? MockData.SystemLogs.Max(l => l.Id) + 1 : 1,
-            Action = "Create",
-            EntityType = "User",
-            EntityId = newUser.Id,
-            Details = $"Yeni kullanıcı oluşturuldu: {newUser.FullName}",
-            Timestamp = DateTime.Now
-        });
+        await _logService.LogAsync(
+            "Create", "User", newUser.Id, 
+            $"Yeni kullanıcı oluşturuldu: {newUser.FullName}", 
+            CurrentUserId, CurrentUserName, null);
 
         return CreatedAtAction(nameof(GetById), new { id = newUser.Id }, new UserDto(
             newUser.Id,
@@ -120,7 +129,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public ActionResult<UserDto> Update(int id, [FromBody] UpdateUserRequest request)
+    public async Task<ActionResult<UserDto>> Update(int id, [FromBody] UpdateUserRequest request)
     {
         var user = MockData.Users.FirstOrDefault(u => u.Id == id);
         if (user == null)
@@ -135,15 +144,10 @@ public class UsersController : ControllerBase
         if (!string.IsNullOrEmpty(request.Password)) user.Password = request.Password;
 
         // Log the action
-        MockData.SystemLogs.Add(new SystemLog
-        {
-            Id = MockData.SystemLogs.Count > 0 ? MockData.SystemLogs.Max(l => l.Id) + 1 : 1,
-            Action = "Update",
-            EntityType = "User",
-            EntityId = user.Id,
-            Details = $"Kullanıcı güncellendi: {user.FullName}",
-            Timestamp = DateTime.Now
-        });
+        await _logService.LogAsync(
+            "Update", "User", user.Id, 
+            $"Kullanıcı güncellendi: {user.FullName}", 
+            CurrentUserId, CurrentUserName, null);
 
         return Ok(new UserDto(
             user.Id,
@@ -158,7 +162,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public ActionResult Delete(int id)
+    public async Task<ActionResult> Delete(int id)
     {
         var user = MockData.Users.FirstOrDefault(u => u.Id == id);
         if (user == null)
@@ -169,15 +173,10 @@ public class UsersController : ControllerBase
         MockData.Users.Remove(user);
 
         // Log the action
-        MockData.SystemLogs.Add(new SystemLog
-        {
-            Id = MockData.SystemLogs.Count > 0 ? MockData.SystemLogs.Max(l => l.Id) + 1 : 1,
-            Action = "Delete",
-            EntityType = "User",
-            EntityId = id,
-            Details = $"Kullanıcı silindi: {user.FullName}",
-            Timestamp = DateTime.Now
-        });
+        await _logService.LogAsync(
+            "Delete", "User", id, 
+            $"Kullanıcı silindi: {user.FullName}", 
+            CurrentUserId, CurrentUserName, null);
 
         return NoContent();
     }

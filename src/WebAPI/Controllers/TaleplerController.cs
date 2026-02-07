@@ -64,6 +64,7 @@ public class TaleplerController : ControllerBase
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Onayla Hatası: {ex}");
             return BadRequest(new { Message = ex.Message });
         }
     }
@@ -78,6 +79,7 @@ public class TaleplerController : ControllerBase
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Reddet Hatası: {ex}");
             return BadRequest(new { Message = ex.Message });
         }
     }
@@ -87,5 +89,11 @@ public class TaleplerController : ControllerBase
     {
         var count = await _talepService.GetBekleyenSayisiAsync();
         return Ok(count);
+    }
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> Delete(int id)
+    {
+        await _talepService.DeleteAsync(id);
+        return NoContent();
     }
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Users, Plus, Edit2, Trash2, Search, X, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, Check, X } from 'lucide-react';
 import { userService, roleService } from '../../services/api';
 import { User, Role, UserCreate } from '../../types';
+import { DataTable, Column } from '../../components/shared/DataTable';
 
 export default function Kullanicilar() {
     const [users, setUsers] = useState<User[]>([]);
@@ -100,110 +101,77 @@ export default function Kullanicilar() {
         setFormData({ username: '', password: '', email: '', fullName: '', roleId: 2 });
     };
 
+    const columns: Column<User>[] = [
+        {
+            header: 'Ad Soyad',
+            render: (user) => (
+                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                    {user.fullName}
+                </span>
+            )
+        },
+        { header: 'Kullanıcı Adı', accessor: 'username' },
+        { header: 'E-posta', accessor: 'email' },
+        {
+            header: 'Rol',
+            render: (user) => (
+                <span className={`badge ${user.roleName === 'Admin' ? 'badge-primary' : 'badge-neutral'}`}>
+                    {user.roleName}
+                </span>
+            )
+        },
+        {
+            header: 'Durum',
+            render: (user) => (
+                <span
+                    className={`badge ${user.isActive ? 'badge-success' : 'badge-error'}`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => handleToggleActive(user)}
+                    title={user.isActive ? 'Pasifleştir' : 'Aktifleştir'}
+                >
+                    {user.isActive ? 'Aktif' : 'Pasif'}
+                </span>
+            )
+        },
+        {
+            header: 'Kayıt Tarihi',
+            render: (user) => new Date(user.createdAt).toLocaleDateString('tr-TR')
+        },
+        {
+            header: 'İşlemler',
+            render: (user) => (
+                <div className="flex gap-sm">
+                    <button
+                        className="btn btn-icon btn-secondary"
+                        onClick={() => handleEdit(user)}
+                    >
+                        <Edit2 size={16} />
+                    </button>
+                    <button
+                        className="btn btn-icon btn-danger"
+                        onClick={() => handleDelete(user.id)}
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                </div>
+            )
+        }
+    ];
+
     return (
         <>
-            <header className="page-header">
-                <div>
-                    <h1>
-                        <Users size={28} style={{ marginRight: '12px', verticalAlign: 'middle' }} />
-                        Kullanıcı Yönetimi
-                    </h1>
-                    <p>Sistem kullanıcılarını yönetin</p>
-                </div>
-                <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-                    <Plus size={18} />
-                    <span>Yeni Kullanıcı</span>
-                </button>
-            </header>
-
             <div className="page-content">
-                {/* Search */}
-                <div className="card" style={{ marginBottom: 'var(--spacing-lg)' }}>
-                    <div style={{ position: 'relative' }}>
-                        <Search style={{
-                            position: 'absolute',
-                            left: '12px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            color: 'var(--text-muted)',
-                            width: '18px',
-                            height: '18px'
-                        }} />
-                        <input
-                            type="text"
-                            className="form-input"
-                            placeholder="Kullanıcı ara..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ paddingLeft: '40px' }}
-                        />
-                    </div>
-                </div>
-
-                {/* Table */}
-                <div className="card">
-                    <div className="table-container">
-                        <table className="table">
-                            <thead>
-                                <tr>
-                                    <th>Ad Soyad</th>
-                                    <th>Kullanıcı Adı</th>
-                                    <th>E-posta</th>
-                                    <th>Rol</th>
-                                    <th>Durum</th>
-                                    <th>Kayıt Tarihi</th>
-                                    <th style={{ textAlign: 'right' }}>İşlemler</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredUsers.map((user) => (
-                                    <tr key={user.id}>
-                                        <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                                            {user.fullName}
-                                        </td>
-                                        <td>{user.username}</td>
-                                        <td>{user.email}</td>
-                                        <td>
-                                            <span className={`badge ${user.roleName === 'Admin' ? 'badge-primary' : 'badge-neutral'}`}>
-                                                {user.roleName}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span
-                                                className={`badge ${user.isActive ? 'badge-success' : 'badge-error'}`}
-                                                style={{ cursor: 'pointer' }}
-                                                onClick={() => handleToggleActive(user)}
-                                                title={user.isActive ? 'Pasifleştir' : 'Aktifleştir'}
-                                            >
-                                                {user.isActive ? 'Aktif' : 'Pasif'}
-                                            </span>
-                                        </td>
-                                        <td>{new Date(user.createdAt).toLocaleDateString('tr-TR')}</td>
-                                        <td>
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-xs)' }}>
-                                                <button
-                                                    className="btn btn-outline"
-                                                    onClick={() => handleEdit(user)}
-                                                    title="Düzenle"
-                                                >
-                                                    <Edit2 size={16} />
-                                                </button>
-                                                <button
-                                                    className="btn btn-outline"
-                                                    onClick={() => handleDelete(user.id)}
-                                                    title="Sil"
-                                                    style={{ color: 'var(--accent-error)' }}
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <DataTable
+                    title="Kullanıcılar"
+                    columns={columns}
+                    data={filteredUsers}
+                    searchable={true}
+                    onSearch={setSearchTerm}
+                    searchPlaceholder="Kullanıcı ara..."
+                    onAdd={() => setShowModal(true)}
+                    addButtonLabel="Kullanıcı Ekle"
+                    emptyMessage="Kullanıcı bulunamadı."
+                />
             </div>
 
             {/* Modal */}
@@ -211,18 +179,16 @@ export default function Kullanicilar() {
                 <div className="modal-overlay" onClick={closeModal}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2>{editingUser ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı'}</h2>
-                            <button className="btn btn-outline" onClick={closeModal}>
-                                <X size={18} />
-                            </button>
+                            <h2>{editingUser ? 'Kullanıcı Düzenle' : 'Kullanıcı Ekle'}</h2>
+                            <button className="modal-close" onClick={closeModal}><X size={20} /></button>
                         </div>
                         <form onSubmit={handleSubmit}>
                             <div className="modal-body">
                                 <div className="form-group">
-                                    <label className="form-label">Ad Soyad *</label>
                                     <input
                                         type="text"
                                         className="form-input"
+                                        placeholder="Ad Soyad *"
                                         value={formData.fullName}
                                         onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                                         required
@@ -230,10 +196,10 @@ export default function Kullanicilar() {
                                 </div>
                                 {!editingUser && (
                                     <div className="form-group">
-                                        <label className="form-label">Kullanıcı Adı *</label>
                                         <input
                                             type="text"
                                             className="form-input"
+                                            placeholder="Kullanıcı Adı *"
                                             value={formData.username}
                                             onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                                             required
@@ -241,35 +207,33 @@ export default function Kullanicilar() {
                                     </div>
                                 )}
                                 <div className="form-group">
-                                    <label className="form-label">E-posta *</label>
                                     <input
                                         type="email"
                                         className="form-input"
+                                        placeholder="E-posta *"
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                         required
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">
-                                        {editingUser ? 'Yeni Şifre (boş bırakılırsa değişmez)' : 'Şifre *'}
-                                    </label>
                                     <input
                                         type="password"
                                         className="form-input"
+                                        placeholder={editingUser ? 'Yeni Şifre (boş bırakılırsa değişmez)' : 'Şifre *'}
                                         value={formData.password}
                                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                         required={!editingUser}
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Rol *</label>
                                     <select
-                                        className="form-input"
+                                        className="form-select"
                                         value={formData.roleId}
                                         onChange={(e) => setFormData({ ...formData, roleId: Number(e.target.value) })}
                                         required
                                     >
+                                        <option value="" disabled>Rol Seçiniz *</option>
                                         {roles.map((role) => (
                                             <option key={role.id} value={role.id}>
                                                 {role.name}

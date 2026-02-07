@@ -9,6 +9,7 @@ import Faturalar from './pages/Faturalar';
 import Cariler from './pages/Cariler';
 import Kategoriler from './pages/Kategoriler';
 import Personeller from './pages/Personeller';
+import Bolumler from './pages/Bolumler';
 import Zimmetler from './pages/Zimmetler';
 // Admin Pages
 import Kullanicilar from './pages/admin/Kullanicilar';
@@ -80,6 +81,11 @@ function AppContent() {
                 <Route path="/zimmetler" element={
                     <ProtectedRoute pageKey="zimmetler">
                         <Zimmetler />
+                    </ProtectedRoute>
+                } />
+                <Route path="/bolumler" element={
+                    <ProtectedRoute pageKey="bolumler">
+                        <Bolumler />
                     </ProtectedRoute>
                 } />
                 {/* Admin Routes */}

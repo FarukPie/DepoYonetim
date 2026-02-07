@@ -21,10 +21,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         // Check for existing session
         if (authService.isLoggedIn()) {
-            const currentUser = authService.getCurrentUser();
+            // Refresh session data (permissions, roles, etc.) from source of truth
+            const currentUser = authService.refreshSession();
             if (currentUser) {
                 setUser(currentUser);
                 setIsLoggedIn(true);
+            } else {
+                // If refresh failed (e.g. user deleted), ensure we are logged out
+                authService.logout();
+                setUser(null);
+                setIsLoggedIn(false);
             }
         }
     }, []);

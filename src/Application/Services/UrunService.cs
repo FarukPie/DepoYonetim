@@ -8,32 +8,27 @@ namespace DepoYonetim.Application.Services;
 public class UrunService : IUrunService
 {
     private readonly IUrunRepository _urunRepository;
+    private readonly IKategoriRepository _kategoriRepository;
+    private readonly IDepoRepository _depoRepository;
+    private readonly ISystemLogService _logService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public UrunService(IUrunRepository urunRepository)
+    public UrunService(
+        IUrunRepository urunRepository,
+        IKategoriRepository kategoriRepository,
+        IDepoRepository depoRepository,
+        ISystemLogService logService,
+        ICurrentUserService currentUserService)
     {
         _urunRepository = urunRepository;
+        _kategoriRepository = kategoriRepository;
+        _depoRepository = depoRepository;
+        _logService = logService;
+        _currentUserService = currentUserService;
     }
-
-    private UrunDto MapToDto(Urun u)
-    {
-        return new UrunDto(
-            u.Id,
-            u.Ad,
-            u.Barkod,
-            u.KategoriId,
-            u.Kategori?.Ad,
-            u.DepoId,
-            u.Depo?.Ad,
-            u.EkParcaVar,
-            u.Birim.ToString(),
-            u.Maliyet,
-            u.KdvOrani,
-            u.GarantiSuresiAy,
-            u.BozuldugundaBakimTipi.ToString(),
-            u.StokMiktari,
-            u.Durum.ToString()
-        );
-    }
+    
+    private int? CurrentUserId => _currentUserService.UserId;
+    private string CurrentUserName => _currentUserService.UserName;
 
     public async Task<IEnumerable<UrunDto>> GetAllAsync()
     {
@@ -55,8 +50,8 @@ public class UrunService : IUrunService
 
     public async Task<UrunDto?> GetByIdAsync(int id)
     {
-        var u = await _urunRepository.GetByIdAsync(id);
-        return u == null ? null : MapToDto(u);
+        var urun = await _urunRepository.GetByIdAsync(id);
+        return urun != null ? MapToDto(urun) : null;
     }
 
     public async Task<UrunDto> CreateAsync(UrunCreateDto dto)
@@ -64,6 +59,10 @@ public class UrunService : IUrunService
         var entity = new Urun
         {
             Ad = dto.Ad,
+            Marka = dto.Marka,
+            Model = dto.Model,
+            SeriNumarasi = dto.SeriNumarasi,
+            Barkod = dto.Barkod,
             KategoriId = dto.KategoriId,
             DepoId = dto.DepoId,
             EkParcaVar = dto.EkParcaVar,
@@ -72,20 +71,34 @@ public class UrunService : IUrunService
             KdvOrani = dto.KdvOrani,
             GarantiSuresiAy = dto.GarantiSuresiAy,
             BozuldugundaBakimTipi = Enum.Parse<BakimTipi>(dto.BozuldugundaBakimTipi),
+            SonBakimTarihi = dto.SonBakimTarihi,
+            KalibrasyonPeriyoduGun = dto.KalibrasyonPeriyoduGun,
             StokMiktari = dto.StokMiktari,
-            Durum = UrunDurum.Aktif
+            Durum = !string.IsNullOrEmpty(dto.Durum) ? Enum.Parse<UrunDurum>(dto.Durum) : UrunDurum.Aktif
         };
 
-        await _urunRepository.AddAsync(entity);
-        return MapToDto(entity);
+        var created = await _urunRepository.AddAsync(entity);
+        
+        await _logService.LogAsync(
+             "Create", "Urun", created.Id, 
+             $"Yeni ürün eklendi: {created.Ad}", 
+             CurrentUserId, CurrentUserName, null);
+
+        return await GetByIdAsync(created.Id) ?? MapToDto(created);
     }
 
     public async Task UpdateAsync(int id, UrunCreateDto dto)
     {
         var entity = await _urunRepository.GetByIdAsync(id);
         if (entity == null) return;
+        
+        var oldName = entity.Ad;
 
         entity.Ad = dto.Ad;
+        entity.Marka = dto.Marka;
+        entity.Model = dto.Model;
+        entity.SeriNumarasi = dto.SeriNumarasi;
+        entity.Barkod = dto.Barkod;
         entity.KategoriId = dto.KategoriId;
         entity.DepoId = dto.DepoId;
         entity.EkParcaVar = dto.EkParcaVar;
@@ -93,14 +106,58 @@ public class UrunService : IUrunService
         entity.Maliyet = dto.Maliyet;
         entity.KdvOrani = dto.KdvOrani;
         entity.GarantiSuresiAy = dto.GarantiSuresiAy;
+        entity.GarantiSuresiAy = dto.GarantiSuresiAy;
         entity.BozuldugundaBakimTipi = Enum.Parse<BakimTipi>(dto.BozuldugundaBakimTipi);
+        entity.SonBakimTarihi = dto.SonBakimTarihi;
+        entity.KalibrasyonPeriyoduGun = dto.KalibrasyonPeriyoduGun;
         entity.StokMiktari = dto.StokMiktari;
+        if (!string.IsNullOrEmpty(dto.Durum))
+        {
+            entity.Durum = Enum.Parse<UrunDurum>(dto.Durum);
+        }
 
         await _urunRepository.UpdateAsync(entity);
+        
+        await _logService.LogAsync(
+             "Update", "Urun", entity.Id, 
+             $"Ürün güncellendi: {oldName} -> {entity.Ad}", 
+             CurrentUserId, CurrentUserName, null);
     }
 
     public async Task DeleteAsync(int id)
     {
-        await _urunRepository.DeleteAsync(id);
+        var entity = await _urunRepository.GetByIdAsync(id);
+        if (entity != null)
+        {
+            await _urunRepository.DeleteAsync(id);
+            
+            await _logService.LogAsync(
+                 "Delete", "Urun", id, 
+                 $"Ürün silindi: {entity.Ad}", 
+                 CurrentUserId, CurrentUserName, null);
+        }
     }
+
+    private UrunDto MapToDto(Urun u) => new(
+        u.Id,
+        u.Ad,
+        u.Marka,
+        u.Model,
+        u.SeriNumarasi,
+        u.Barkod,
+        u.KategoriId,
+        u.Kategori?.Ad,
+        u.DepoId,
+        u.Depo?.Ad,
+        u.EkParcaVar,
+        u.Birim.ToString(),
+        u.Maliyet,
+        u.KdvOrani,
+        u.GarantiSuresiAy,
+        u.BozuldugundaBakimTipi.ToString(),
+        u.SonBakimTarihi,
+        u.KalibrasyonPeriyoduGun,
+        u.StokMiktari,
+        u.Durum.ToString()
+    );
 }

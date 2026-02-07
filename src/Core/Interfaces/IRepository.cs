@@ -53,3 +53,8 @@ public interface IZimmetRepository : IRepository<Zimmet>
     Task<IEnumerable<Zimmet>> GetSonZimmetlerAsync(int count);
     Task<IEnumerable<Zimmet>> GetByPersonelIdAsync(int personelId);
 }
+
+public interface IBolumRepository : IRepository<Bolum>
+{
+    // Add specific methods if needed, for tree traversal we mostly rely on GetAllAsync
+}

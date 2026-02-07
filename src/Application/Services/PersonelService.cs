@@ -2,16 +2,27 @@ using DepoYonetim.Application.DTOs;
 using DepoYonetim.Core.Entities;
 using DepoYonetim.Core.Interfaces;
 
+
 namespace DepoYonetim.Application.Services;
 
 public class PersonelService : IPersonelService
 {
     private readonly IPersonelRepository _personelRepository;
+    private readonly ISystemLogService _logService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public PersonelService(IPersonelRepository personelRepository)
+    public PersonelService(
+        IPersonelRepository personelRepository,
+        ISystemLogService logService,
+        ICurrentUserService currentUserService)
     {
         _personelRepository = personelRepository;
+        _logService = logService;
+        _currentUserService = currentUserService;
     }
+    
+    private int? CurrentUserId => _currentUserService.UserId;
+    private string CurrentUserName => _currentUserService.UserName;
 
     private PersonelDto MapToDto(Personel p)
     {
@@ -66,6 +77,12 @@ public class PersonelService : IPersonelService
         };
 
         await _personelRepository.AddAsync(entity);
+        
+        await _logService.LogAsync(
+             "Create", "Personel", entity.Id, 
+             $"Yeni personel eklendi: {entity.Ad} {entity.Soyad}", 
+             CurrentUserId, CurrentUserName, null);
+        
         return MapToDto(entity);
     }
 
@@ -73,6 +90,8 @@ public class PersonelService : IPersonelService
     {
         var entity = await _personelRepository.GetByIdAsync(id);
         if (entity == null) return;
+        
+        var oldName = $"{entity.Ad} {entity.Soyad}";
 
         entity.Ad = dto.Ad;
         entity.Soyad = dto.Soyad;
@@ -84,10 +103,24 @@ public class PersonelService : IPersonelService
         if (dto.IseGirisTarihi.HasValue) entity.IseGirisTarihi = dto.IseGirisTarihi.Value;
 
         await _personelRepository.UpdateAsync(entity);
+        
+        await _logService.LogAsync(
+             "Update", "Personel", entity.Id, 
+             $"Personel güncellendi: {oldName} -> {entity.Ad} {entity.Soyad}", 
+             CurrentUserId, CurrentUserName, null);
     }
 
     public async Task DeleteAsync(int id)
     {
-        await _personelRepository.DeleteAsync(id);
+        var entity = await _personelRepository.GetByIdAsync(id);
+        if (entity != null)
+        {
+            await _personelRepository.DeleteAsync(id);
+            
+            await _logService.LogAsync(
+                 "Delete", "Personel", id, 
+                 $"Personel silindi: {entity.Ad} {entity.Soyad}", 
+                 CurrentUserId, CurrentUserName, null);
+        }
     }
 }
