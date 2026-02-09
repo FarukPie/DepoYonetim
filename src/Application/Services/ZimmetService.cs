@@ -34,7 +34,9 @@ public class ZimmetService : IZimmetService
             z.UrunId,
             z.Urun?.Ad ?? "",
             z.PersonelId,
-            z.Personel != null ? $"{z.Personel.Ad} {z.Personel.Soyad}" : "",
+            z.Personel != null ? $"{z.Personel.Ad} {z.Personel.Soyad}" : null,
+            z.BolumId,
+            z.Bolum?.Ad,
             z.ZimmetTarihi,
             z.IadeTarihi,
             z.Durum.ToString(),
@@ -62,10 +64,28 @@ public class ZimmetService : IZimmetService
 
     public async Task<ZimmetDto> CreateAsync(ZimmetCreateDto dto)
     {
+        // Check for existing active zimmet for this product and close it if exists (Re-assignment)
+        var activeZimmets = await _zimmetRepository.FindAsync(z => z.UrunId == dto.UrunId && z.Durum == ZimmetDurum.Aktif);
+        var activeZimmet = activeZimmets.FirstOrDefault();
+        
+        if (activeZimmet != null)
+        {
+            activeZimmet.Durum = ZimmetDurum.Iade;
+            activeZimmet.IadeTarihi = DateTime.Now;
+            activeZimmet.Aciklama = activeZimmet.Aciklama + " (Otomatik İade - Yeni Zimmetleme)";
+            await _zimmetRepository.UpdateAsync(activeZimmet);
+
+            await _logService.LogAsync(
+                 "Update", "Zimmet", activeZimmet.Id, 
+                 $"Ürün yeniden zimmetlendiği için önceki zimmet kapatıldı. ID: {activeZimmet.Id}", 
+                 CurrentUserId, CurrentUserName, null);
+        }
+
         var entity = new Zimmet
         {
             UrunId = dto.UrunId,
             PersonelId = dto.PersonelId,
+            BolumId = dto.BolumId,
             ZimmetTarihi = dto.ZimmetTarihi,
             Aciklama = dto.Aciklama,
             Durum = ZimmetDurum.Aktif
@@ -73,18 +93,19 @@ public class ZimmetService : IZimmetService
 
         var created = await _zimmetRepository.AddAsync(entity);
 
-        // Update Product Status to Zimmetli
+        // Update Product Status to Aktif (Assigned)
         var urun = await _urunRepository.GetByIdAsync(dto.UrunId);
         if (urun != null)
         {
-            urun.Durum = UrunDurum.Zimmetli;
+            urun.Durum = UrunDurum.Aktif;
             await _urunRepository.UpdateAsync(urun);
         }
         
         // Retrieve full entity for logging details if possible, but basic info is enough
         await _logService.LogAsync(
              "Create", "Zimmet", created.Id, 
-             $"Zimmet oluşturuldu. Ürün ID: {dto.UrunId}, Personel ID: {dto.PersonelId}", 
+             $"Zimmet oluşturuldu. Ürün ID: {dto.UrunId}, " +
+             (dto.PersonelId.HasValue ? $"Personel ID: {dto.PersonelId}" : $"Bölüm ID: {dto.BolumId}"), 
              CurrentUserId, CurrentUserName, null);
         
         return await GetByIdAsync(created.Id) ?? MapToDto(created);
@@ -100,11 +121,11 @@ public class ZimmetService : IZimmetService
 
         await _zimmetRepository.UpdateAsync(z);
 
-        // Update Product Status to Aktif (Free)
+        // Update Product Status to Pasif (Unassigned/Available)
         var urun = await _urunRepository.GetByIdAsync(z.UrunId);
         if (urun != null)
         {
-            urun.Durum = UrunDurum.Aktif;
+            urun.Durum = UrunDurum.Pasif;
             await _urunRepository.UpdateAsync(urun);
         }
         
@@ -121,6 +142,7 @@ public class ZimmetService : IZimmetService
 
         z.UrunId = dto.UrunId;
         z.PersonelId = dto.PersonelId;
+        z.BolumId = dto.BolumId;
         z.ZimmetTarihi = dto.ZimmetTarihi;
         z.Aciklama = dto.Aciklama;
         
@@ -145,11 +167,11 @@ public class ZimmetService : IZimmetService
 
         await _zimmetRepository.DeleteAsync(id);
 
-        // Update Product Status to Aktif (Free)
+        // Update Product Status to Pasif (Unassigned/Available)
         var urun = await _urunRepository.GetByIdAsync(z.UrunId);
         if (urun != null)
         {
-            urun.Durum = UrunDurum.Aktif;
+            urun.Durum = UrunDurum.Pasif;
             await _urunRepository.UpdateAsync(urun);
         }
         

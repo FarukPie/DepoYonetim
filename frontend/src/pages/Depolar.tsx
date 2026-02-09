@@ -56,6 +56,14 @@ export default function Depolar() {
         setFilteredDepolar(filtered);
     };
 
+    // Stable data for DataTable - only update when modal is closed to prevent flickering
+    const [stableTableData, setStableTableData] = useState<Depo[]>([]);
+    useEffect(() => {
+        if (!showModal) {
+            setStableTableData(filteredDepolar);
+        }
+    }, [filteredDepolar, showModal]);
+
     const openAddModal = () => {
         setEditingDepo(null);
         setFormData({ ad: '', aciklama: '', sorumluPersonelId: '', aktif: false });
@@ -197,7 +205,7 @@ export default function Depolar() {
                 <DataTable
                     title="Depolar"
                     columns={columns}
-                    data={filteredDepolar}
+                    data={stableTableData}
                     searchable={true}
                     onSearch={handleSearch}
                     searchPlaceholder="Depo ara..."

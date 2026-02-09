@@ -3,7 +3,7 @@ export type Birim = 'Adet' | 'Kg' | 'Kutu';
 export type BakimTipi = 'Kalibrasyon' | 'Bakim';
 export type CariTipi = 'Tedarikci' | 'Musteri';
 export type ZimmetDurum = 'Aktif' | 'Iade' | 'Kayip';
-export type UrunDurum = 'Aktif' | 'Bakimda' | 'TamirBekliyor' | 'Hurda' | 'Zimmetli';
+export type UrunDurum = 'Aktif' | 'Bakimda' | 'TamirBekliyor' | 'Hurda' | 'Zimmetli' | 'Pasif';
 
 // ===== DEPO =====
 export interface Depo {
@@ -38,8 +38,6 @@ export interface Urun {
   kdvOrani: number;
   garantiSuresiAy: number;
   bozuldugundaBakimTipi: BakimTipi;
-  sonBakimTarihi?: string;
-  kalibrasyonPeriyoduGun?: number;
   stokMiktari: number;
   durum: UrunDurum;
   marka?: string;
@@ -205,8 +203,10 @@ export interface Zimmet {
   id: number;
   urunId: number;
   urunAdi: string;
-  personelId: number;
-  personelAdi: string;
+  personelId?: number;
+  personelAdi?: string;
+  bolumId?: number;
+  bolumAdi?: string;
   zimmetTarihi: string;
   iadeTarihi?: string;
   durum: ZimmetDurum;
@@ -215,8 +215,18 @@ export interface Zimmet {
 
 export interface ZimmetCreate {
   urunId: number;
-  personelId: number;
+  personelId?: number;
+  bolumId?: number;
   zimmetTarihi: string;
+  aciklama?: string;
+}
+
+export interface ZimmetUpdate {
+  urunId: number;
+  personelId?: number;
+  bolumId?: number;
+  zimmetTarihi: string;
+  durum: string;
   aciklama?: string;
 }
 

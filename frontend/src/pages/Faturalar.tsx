@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Download, Filter, Search, X, Package, ChevronDown, ChevronUp, Edit, Upload, FileText } from 'lucide-react';
 import { faturaService, cariService, urunService, kategoriService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Fatura, Cari, Urun, FaturaKalemiCreate, Kategori } from '../types';
 import { DataTable, Column } from '../components/shared/DataTable';
 import CariModal from '../components/shared/CariModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function Faturalar() {
     const { hasEntityPermission } = useAuth();
@@ -22,9 +24,20 @@ export default function Faturalar() {
     const [showCariModal, setShowCariModal] = useState(false);
     const [showProductModal, setShowProductModal] = useState(false);
     const [expandedRowIndex, setExpandedRowIndex] = useState<number | null>(null);
+    const [bulkModeIndexes, setBulkModeIndexes] = useState<Set<number>>(new Set());
     const [productSearchTerm, setProductSearchTerm] = useState('');
     const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
     const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
+
+    // Yeni malzeme modal state
+    const [showNewMaterialModal, setShowNewMaterialModal] = useState(false);
+    const [newMaterialFormData, setNewMaterialFormData] = useState({
+        marka: '',
+        model: '',
+        seriNumarasi: '',
+        barkod: '',
+        birim: 'Adet'
+    });
 
     // Malzeme seçim filtreleri
     const [productCategoryFilter, setProductCategoryFilter] = useState('');
@@ -34,6 +47,10 @@ export default function Faturalar() {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Zimmet confirmation state
+    const [showZimmetConfirm, setShowZimmetConfirm] = useState(false);
+    const navigate = useNavigate();
 
     const canAdd = hasEntityPermission('fatura', 'add');
     const canEdit = hasEntityPermission('fatura', 'edit');
@@ -68,10 +85,18 @@ export default function Faturalar() {
         }
     };
 
-    const filteredFaturalar = faturalar.filter(f =>
+    const filteredFaturalar = useMemo(() => faturalar.filter(f =>
         f.faturaNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         f.cariAdi.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ), [faturalar, searchTerm]);
+
+    // Stable data for DataTable - only update when modal is closed to prevent flickering
+    const [stableTableData, setStableTableData] = useState<Fatura[]>([]);
+    useEffect(() => {
+        if (!showModal && !showProductModal && !showCariModal && !showNewMaterialModal) {
+            setStableTableData(filteredFaturalar);
+        }
+    }, [filteredFaturalar, showModal, showProductModal, showCariModal, showNewMaterialModal]);
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value);
@@ -148,6 +173,53 @@ export default function Faturalar() {
         setKalemler([...kalemler, { urunAdi: '', miktar: 1, birimFiyat: 0, indirimOrani: 0, kdvOrani: 20 }]);
     };
 
+    // Yeni malzeme kaydetme handler
+    const handleNewMaterialSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const createData = {
+                ad: `${newMaterialFormData.marka} ${newMaterialFormData.model}`.trim(),
+                marka: newMaterialFormData.marka,
+                model: newMaterialFormData.model,
+                seriNumarasi: newMaterialFormData.seriNumarasi,
+                barkod: newMaterialFormData.barkod,
+                birim: newMaterialFormData.birim as 'Adet' | 'Kg' | 'Kutu',
+                kategoriId: kategoriler.length > 0 ? kategoriler[0].id : 1,
+                depoId: undefined,
+                stokMiktari: 1,
+                maliyet: 0,
+                kdvOrani: 18,
+                garantiSuresiAy: 24,
+                bozuldugundaBakimTipi: 'Bakim' as 'Kalibrasyon' | 'Bakim',
+                ekParcaVar: false,
+                durum: 'Pasif' as const
+            };
+
+            const createdUrun = await urunService.create(createData);
+
+            // Ürünler listesini güncelle
+            setUrunler([...urunler, createdUrun]);
+
+            // Yeni malzemeyi otomatik olarak fatura kalemine ekle
+            const newKalem: FaturaKalemiCreate = {
+                urunId: createdUrun.id,
+                urunAdi: createdUrun.ad,
+                miktar: 1,
+                birimFiyat: createdUrun.maliyet || 0,
+                indirimOrani: 0,
+                kdvOrani: 20
+            };
+            setKalemler([...kalemler, newKalem]);
+
+            // Modalı kapat
+            setShowNewMaterialModal(false);
+            setNewMaterialFormData({ marka: '', model: '', seriNumarasi: '', barkod: '', birim: 'Adet' });
+        } catch (error) {
+            console.error('Malzeme kaydedilirken hata oluştu:', error);
+            alert('Malzeme kaydedilirken bir hata oluştu.');
+        }
+    };
+
     const removeKalem = (index: number) => {
         setKalemler(kalemler.filter((_, i) => i !== index));
     };
@@ -160,6 +232,31 @@ export default function Faturalar() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Fatura kalemlerinde miktar ve KDV kontrolü
+        if (kalemler.length > 0) {
+            for (let i = 0; i < kalemler.length; i++) {
+                const kalem = kalemler[i];
+                if (bulkModeIndexes.has(i) && (!kalem.miktar || kalem.miktar <= 0)) {
+                    alert(`${i + 1}. kalem için miktar girilmedi. Lütfen geçerli bir miktar girin.`);
+                    return;
+                }
+                if (kalem.kdvOrani === undefined || kalem.kdvOrani === null || isNaN(kalem.kdvOrani)) {
+                    alert(`${i + 1}. kalem için KDV oranı girilmedi. Lütfen geçerli bir KDV oranı girin.`);
+                    return;
+                }
+            }
+        }
+
+        // Sadece yeni fatura eklerken sor (düzenlemede sorma)
+        if (!editingId) {
+            setShowZimmetConfirm(true);
+        } else {
+            finalizeSave(false);
+        }
+    };
+
+    const finalizeSave = async (shouldAssign: boolean) => {
         try {
             const data = {
                 faturaNo: formData.faturaNo,
@@ -182,6 +279,11 @@ export default function Faturalar() {
 
             loadData();
             closeModal();
+
+            if (shouldAssign) {
+                // Zimmet sayfasına yönlendir ve kalemleri taşı
+                navigate('/zimmetler', { state: { assignItems: kalemler } });
+            }
         } catch (error) {
             console.error('Kaydetme hatası:', error);
             alert('Kaydetme sırasında bir hata oluştu.');
@@ -296,6 +398,13 @@ export default function Faturalar() {
             render: (fatura) => new Date(fatura.faturaTarihi).toLocaleDateString('tr-TR')
         },
         {
+            header: 'Toplam Adet',
+            render: (fatura) => {
+                const toplamAdet = fatura.kalemler?.reduce((sum, kalem) => sum + (kalem.miktar || 1), 0) || 0;
+                return <span style={{ fontWeight: 500 }}>{toplamAdet}</span>;
+            }
+        },
+        {
             header: 'Ara Toplam',
             render: (fatura) => formatCurrency(fatura.araToplam)
         },
@@ -338,7 +447,7 @@ export default function Faturalar() {
                 <DataTable
                     title="Faturalar"
                     columns={columns}
-                    data={filteredFaturalar}
+                    data={stableTableData}
                     searchable={true}
                     onSearch={(term) => setSearchTerm(term)}
                     searchPlaceholder="Fatura no veya cari ara..."
@@ -409,9 +518,17 @@ export default function Faturalar() {
                                     <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 'var(--spacing-lg)', marginTop: 'var(--spacing-lg)' }}>
                                         <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-md)' }}>
                                             <label className="form-label" style={{ margin: 0 }}>Fatura Kalemleri</label>
-                                            <button type="button" className="btn btn-outline" onClick={() => setShowProductModal(true)}>
-                                                <Package size={16} style={{ marginRight: '6px' }} /> Malzeme Ekle
-                                            </button>
+                                            <div className="flex gap-sm">
+                                                <button type="button" className="btn btn-primary" onClick={() => {
+                                                    setNewMaterialFormData({ marka: '', model: '', seriNumarasi: '', barkod: '', birim: 'Adet' });
+                                                    setShowNewMaterialModal(true);
+                                                }}>
+                                                    <Plus size={16} style={{ marginRight: '6px' }} /> Yeni Malzeme Kaydet
+                                                </button>
+                                                <button type="button" className="btn btn-outline" onClick={() => setShowProductModal(true)}>
+                                                    <Package size={16} style={{ marginRight: '6px' }} /> Malzeme Ekle
+                                                </button>
+                                            </div>
                                         </div>
 
                                         {kalemler.length > 0 ? (
@@ -419,11 +536,12 @@ export default function Faturalar() {
                                                 <table className="data-table" style={{ width: '100%', marginBottom: 'var(--spacing-md)' }}>
                                                     <thead>
                                                         <tr>
-                                                            <th style={{ width: '35%' }}>Ürün Adı</th>
-                                                            <th style={{ width: '20%' }}>Birim Fiyat</th>
-                                                            <th style={{ width: '12%' }}>İndirim %</th>
-                                                            <th style={{ width: '12%' }}>KDV %</th>
-                                                            <th style={{ width: '15%' }}>Toplam</th>
+                                                            <th style={{ width: '30%' }}>Ürün Adı</th>
+                                                            <th style={{ width: '15%' }}>Miktar</th>
+                                                            <th style={{ width: '15%' }}>Birim Fiyat</th>
+                                                            <th style={{ width: '10%' }}>İndirim %</th>
+                                                            <th style={{ width: '10%' }}>KDV %</th>
+                                                            <th style={{ width: '14%' }}>Toplam</th>
                                                             <th style={{ width: '6%' }}></th>
                                                         </tr>
                                                     </thead>
@@ -449,18 +567,59 @@ export default function Faturalar() {
                                                                         </td>
 
                                                                         <td>
-                                                                            <input type="number" className="form-input" min="0" step="0.01" value={kalem.birimFiyat}
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={bulkModeIndexes.has(index)}
+                                                                                    onChange={(e) => {
+                                                                                        const newSet = new Set(bulkModeIndexes);
+                                                                                        if (e.target.checked) {
+                                                                                            newSet.add(index);
+                                                                                        } else {
+                                                                                            newSet.delete(index);
+                                                                                            updateKalem(index, 'miktar', 1);
+                                                                                        }
+                                                                                        setBulkModeIndexes(newSet);
+                                                                                    }}
+                                                                                    title="Toplu miktar girişi"
+                                                                                    style={{ width: '18px', height: '18px', cursor: 'pointer', flexShrink: 0 }}
+                                                                                />
+                                                                                {bulkModeIndexes.has(index) ? (
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        className="form-input"
+                                                                                        min="1"
+                                                                                        value={kalem.miktar === 0 ? '' : kalem.miktar}
+                                                                                        onChange={(e) => {
+                                                                                            const val = e.target.value;
+                                                                                            updateKalem(index, 'miktar', val === '' ? 0 : parseInt(val) || 0);
+                                                                                        }}
+                                                                                        placeholder="Adet"
+                                                                                        style={{ width: '80px' }}
+                                                                                    />
+                                                                                ) : (
+                                                                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>1 adet</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </td>
+
+                                                                        <td>
+                                                                            <input type="number" className="form-input" min="0" step="0.01" value={kalem.birimFiyat || ''}
                                                                                 onChange={(e) => updateKalem(index, 'birimFiyat', parseFloat(e.target.value) || 0)}
                                                                                 style={{ width: '100%' }} />
                                                                         </td>
                                                                         <td>
-                                                                            <input type="number" className="form-input" min="0" max="100" value={kalem.indirimOrani}
+                                                                            <input type="number" className="form-input" min="0" max="100" value={kalem.indirimOrani || ''}
                                                                                 onChange={(e) => updateKalem(index, 'indirimOrani', parseFloat(e.target.value) || 0)}
                                                                                 style={{ width: '100%' }} />
                                                                         </td>
                                                                         <td>
-                                                                            <input type="number" className="form-input" min="0" max="100" value={kalem.kdvOrani}
-                                                                                onChange={(e) => updateKalem(index, 'kdvOrani', parseFloat(e.target.value) || 0)}
+                                                                            <input type="number" className="form-input" min="0" max="100"
+                                                                                value={kalem.kdvOrani === 0 ? '' : (kalem.kdvOrani ?? '')}
+                                                                                onChange={(e) => {
+                                                                                    const val = e.target.value;
+                                                                                    updateKalem(index, 'kdvOrani', val === '' ? undefined : parseFloat(val));
+                                                                                }}
                                                                                 style={{ width: '100%' }} />
                                                                         </td>
                                                                         <td style={{ fontWeight: 600, color: 'var(--primary-400)' }}>
@@ -474,13 +633,12 @@ export default function Faturalar() {
                                                                     </tr>
                                                                     {isExpanded && urun && (
                                                                         <tr>
-                                                                            <td colSpan={6} style={{ background: 'var(--bg-tertiary)', padding: 'var(--spacing-md)' }}>
+                                                                            <td colSpan={7} style={{ background: 'var(--bg-tertiary)', padding: 'var(--spacing-md)' }}>
                                                                                 <div className="grid-3" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Barkod:</strong> {urun.barkod || '-'}</div>
-                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Kategori:</strong> {urun.kategoriAdi || '-'}</div>
-                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Depo:</strong> {urun.depoAdi || '-'}</div>
-                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Stok:</strong> {urun.stokMiktari} {urun.birim}</div>
-                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Durum:</strong> {urun.durum}</div>
+                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Marka:</strong> {urun.marka || '-'}</div>
+                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Model:</strong> {urun.model || '-'}</div>
+                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Seri Numarası:</strong> {urun.seriNumarasi || '-'}</div>
+                                                                                    <div><strong style={{ color: 'var(--text-primary)' }}>Barkod Numarası:</strong> {urun.barkod || '-'}</div>
                                                                                 </div>
                                                                             </td>
                                                                         </tr>
@@ -733,6 +891,81 @@ export default function Faturalar() {
                     </div>
                 </div>
             )}
+
+            {/* Yeni Malzeme Kaydet Modal */}
+            {showNewMaterialModal && (
+                <div className="modal-overlay" onClick={() => setShowNewMaterialModal(false)} style={{ zIndex: 1100 }}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ zIndex: 1101 }}>
+                        <div className="modal-header">
+                            <h2>Yeni Malzeme Kaydet</h2>
+                            <button className="modal-close" onClick={() => setShowNewMaterialModal(false)}><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleNewMaterialSubmit}>
+                            <div className="modal-body">
+                                <div className="grid-2">
+                                    <div className="form-group">
+                                        <label className="form-label">Marka</label>
+                                        <input type="text" className="form-input" required value={newMaterialFormData.marka}
+                                            placeholder="Örn: Apple, Lenovo, HP"
+                                            onChange={(e) => setNewMaterialFormData({ ...newMaterialFormData, marka: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Model</label>
+                                        <input type="text" className="form-input" required value={newMaterialFormData.model}
+                                            placeholder="Örn: MacBook Pro 14, ThinkPad X1"
+                                            onChange={(e) => setNewMaterialFormData({ ...newMaterialFormData, model: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div className="grid-2">
+                                    <div className="form-group">
+                                        <label className="form-label">Seri Numarası</label>
+                                        <input type="text" className="form-input" value={newMaterialFormData.seriNumarasi}
+                                            placeholder="Örn: SN123456789"
+                                            onChange={(e) => setNewMaterialFormData({ ...newMaterialFormData, seriNumarasi: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Barkod Numarası</label>
+                                        <input type="text" className="form-input" value={newMaterialFormData.barkod}
+                                            placeholder="Örn: 8699999999999"
+                                            onChange={(e) => setNewMaterialFormData({ ...newMaterialFormData, barkod: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Birim</label>
+                                    <select className="form-select" value={newMaterialFormData.birim}
+                                        onChange={(e) => setNewMaterialFormData({ ...newMaterialFormData, birim: e.target.value })}>
+                                        <option value="Adet">Adet</option>
+                                        <option value="Kutu">Kutu</option>
+                                        <option value="Kg">Kg</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowNewMaterialModal(false)}>İptal</button>
+                                <button type="submit" className="btn btn-primary">Kaydet ve Ekle</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Zimmet Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={showZimmetConfirm}
+                title="Zimmetleme İşlemi"
+                message="Fatura başarıyla oluşturulacak. Faturadaki malzemeleri hemen zimmetlemek ister misiniz?"
+                confirmText="Evet, Zimmetle"
+                cancelText="Hayır, Sadece Kaydet"
+                onConfirm={() => {
+                    setShowZimmetConfirm(false);
+                    finalizeSave(true);
+                }}
+                onCancel={() => {
+                    setShowZimmetConfirm(false);
+                    finalizeSave(false);
+                }}
+                variant="info"
+            />
         </>
     );
 }

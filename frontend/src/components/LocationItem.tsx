@@ -82,7 +82,7 @@ export default function LocationItem({ location, onEdit, onDelete, canEdit, canD
 
             {isExpanded && hasChildren && (
                 <div className="category-children">
-                    {location.subLocations.map((child) => (
+                    {location.subLocations?.map((child) => (
                         <LocationItem
                             key={child.id}
                             location={child}

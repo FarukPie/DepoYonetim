@@ -16,6 +16,7 @@ public class ZimmetRepository : EfRepository<Zimmet>, IZimmetRepository
         return await _context.Zimmetler
             .Include(z => z.Urun)
             .Include(z => z.Personel)
+            .Include(z => z.Bolum)
             .OrderByDescending(z => z.CreatedAt)
             .ToListAsync();
     }
@@ -25,6 +26,7 @@ public class ZimmetRepository : EfRepository<Zimmet>, IZimmetRepository
         return await _context.Zimmetler
             .Include(z => z.Urun)
             .Include(z => z.Personel)
+            .Include(z => z.Bolum)
             .FirstOrDefaultAsync(z => z.Id == id);
     }
 
@@ -35,6 +37,7 @@ public class ZimmetRepository : EfRepository<Zimmet>, IZimmetRepository
             .Take(count)
             .Include(z => z.Urun)
             .Include(z => z.Personel)
+            .Include(z => z.Bolum)
             .ToListAsync();
     }
 

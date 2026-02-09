@@ -18,10 +18,6 @@ public class Urun : BaseEntity
     public int GarantiSuresiAy { get; set; } = 12;
     public BakimTipi BozuldugundaBakimTipi { get; set; } = BakimTipi.Bakim;
     
-    // Kalibrasyon/Bakım Takibi
-    public DateTime? SonBakimTarihi { get; set; }
-    public int? KalibrasyonPeriyoduGun { get; set; }
-
     public int StokMiktari { get; set; } = 0;
     public UrunDurum Durum { get; set; } = UrunDurum.Aktif;
 

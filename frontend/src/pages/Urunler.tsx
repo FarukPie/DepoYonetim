@@ -66,6 +66,14 @@ export default function Urunler() {
         return matchesSearch && matchesDepo;
     }), [urunler, searchTerm, selectedDepo]);
 
+    // Stable data for DataTable - only update when modal is closed to prevent flickering
+    const [stableTableData, setStableTableData] = useState<Urun[]>([]);
+    useEffect(() => {
+        if (!showModal && !showBakimModal) {
+            setStableTableData(filteredUrunler);
+        }
+    }, [filteredUrunler, showModal, showBakimModal]);
+
     const openBakimModal = (urun: Urun) => {
         setSelectedUrun(urun);
         setBakimFormData({
@@ -166,7 +174,7 @@ export default function Urunler() {
                     garantiSuresiAy: 24,
                     bozuldugundaBakimTipi: 'Bakim' as 'Kalibrasyon' | 'Bakim',
                     ekParcaVar: false,
-                    durum: 'Aktif' as const
+                    durum: 'Pasif' as const
                 };
                 await urunService.create(createData);
             }
@@ -235,22 +243,8 @@ export default function Urunler() {
             header: 'Model',
             render: (urun: Urun) => urun.model || urun.ad.split(' ').slice(1).join(' ') || '-'
         },
-        { header: 'Seri Numarası', accessor: 'seriNumarasi' as keyof Urun },
         { header: 'Barkod Numarası', accessor: 'barkod' as keyof Urun },
-        {
-            header: 'Stok',
-            render: (urun: Urun) => `${urun.stokMiktari} ${urun.birim}`
-        },
-        {
-            header: 'Maliyet',
-            render: (urun: Urun) => `${urun.maliyet?.toLocaleString('tr-TR')} ₺`
-        },
-        {
-            header: 'Durum',
-            render: (urun: Urun) => (
-                <span className={`badge ${getDurumBadge(urun.durum)}`}>{getDurumText(urun.durum)}</span>
-            )
-        },
+        { header: 'Seri Numarası', accessor: 'seriNumarasi' as keyof Urun },
         ...((canEdit || canDelete || canCreateRequest) ? [{
             header: 'İşlemler',
             render: (urun: Urun) => (
@@ -287,7 +281,7 @@ export default function Urunler() {
                 <DataTable
                     title="Ürünler"
                     columns={columns}
-                    data={filteredUrunler}
+                    data={stableTableData}
                     searchable={true}
                     onSearch={(term) => setSearchTerm(term)}
                     searchPlaceholder="Ürün ara..."

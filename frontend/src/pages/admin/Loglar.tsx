@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { FileText, Filter, LogIn, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { logService, userService } from '../../services/api';
 import { SystemLog, User } from '../../types';
@@ -45,10 +45,10 @@ export default function Loglar() {
         }
     };
 
-    const filteredLogs = logs.filter(log =>
+    const filteredLogs = useMemo(() => logs.filter(log =>
         (log.details?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
         (log.userName?.toLowerCase().includes(searchTerm.toLowerCase()) || false)
-    );
+    ), [logs, searchTerm]);
 
     const getActionBadge = (action: string) => {
         switch (action) {

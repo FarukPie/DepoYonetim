@@ -1,0 +1,1 @@
+src/components/LocationItem.tsx(85,22): error TS18048: 'location.subLocations' is possibly 'undefined'.

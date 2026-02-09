@@ -3,6 +3,7 @@ using System;
 using DepoYonetim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DepoYonetim.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260209053713_AddBolumToZimmet")]
+    partial class AddBolumToZimmet
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -525,6 +528,9 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<int?>("KalibrasyonPeriyoduGun")
+                        .HasColumnType("int");
+
                     b.Property<int>("KategoriId")
                         .HasColumnType("int");
 
@@ -542,6 +548,9 @@ namespace DepoYonetim.Infrastructure.Migrations
 
                     b.Property<string>("SeriNumarasi")
                         .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("SonBakimTarihi")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("StokMiktari")
                         .HasColumnType("int");

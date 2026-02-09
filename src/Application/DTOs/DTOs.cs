@@ -43,8 +43,6 @@ public record UrunDto(
     decimal KdvOrani,
     int GarantiSuresiAy,
     string BozuldugundaBakimTipi,
-    DateTime? SonBakimTarihi,
-    int? KalibrasyonPeriyoduGun,
     int StokMiktari,
     string Durum
 );
@@ -63,8 +61,6 @@ public record UrunCreateDto(
     decimal KdvOrani,
     int GarantiSuresiAy,
     string BozuldugundaBakimTipi,
-    DateTime? SonBakimTarihi,
-    int? KalibrasyonPeriyoduGun,
     int StokMiktari,
     string? Durum
 );
@@ -210,8 +206,10 @@ public record ZimmetDto(
     int Id,
     int UrunId,
     string UrunAdi,
-    int PersonelId,
-    string PersonelAdi,
+    int? PersonelId,
+    string? PersonelAdi,
+    int? BolumId,
+    string? BolumAdi,
     DateTime ZimmetTarihi,
     DateTime? IadeTarihi,
     string Durum,
@@ -220,14 +218,16 @@ public record ZimmetDto(
 
 public record ZimmetCreateDto(
     int UrunId,
-    int PersonelId,
+    int? PersonelId,
+    int? BolumId,
     DateTime ZimmetTarihi,
     string? Aciklama
 );
 
 public record ZimmetUpdateDto(
     int UrunId,
-    int PersonelId,
+    int? PersonelId,
+    int? BolumId,
     DateTime ZimmetTarihi,
     string Durum,
     string? Aciklama

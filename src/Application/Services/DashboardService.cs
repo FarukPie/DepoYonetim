@@ -75,7 +75,9 @@ public class DashboardService : IDashboardService
                 z.UrunId,
                 z.Urun?.Ad ?? "",
                 z.PersonelId,
-                z.Personel != null ? $"{z.Personel.Ad} {z.Personel.Soyad}" : "",
+                z.Personel != null ? $"{z.Personel.Ad} {z.Personel.Soyad}" : null,
+                z.BolumId,
+                z.Bolum?.Ad,
                 z.ZimmetTarihi,
                 z.IadeTarihi,
                 z.Durum.ToString(),
@@ -98,8 +100,6 @@ public class DashboardService : IDashboardService
                 u.KdvOrani,
                 u.GarantiSuresiAy,
                 u.BozuldugundaBakimTipi.ToString(),
-                u.SonBakimTarihi,
-                u.KalibrasyonPeriyoduGun,
                 u.StokMiktari,
                 u.Durum.ToString()
             )).ToList(),
@@ -121,8 +121,6 @@ public class DashboardService : IDashboardService
                 u.KdvOrani,
                 u.GarantiSuresiAy,
                 u.BozuldugundaBakimTipi.ToString(),
-                u.SonBakimTarihi,
-                u.KalibrasyonPeriyoduGun,
                 u.StokMiktari,
                 u.Durum.ToString()
             )).ToList()

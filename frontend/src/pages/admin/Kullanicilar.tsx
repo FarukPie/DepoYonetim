@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Plus, Edit2, Trash2, Check, X } from 'lucide-react';
 import { userService, roleService } from '../../services/api';
 import { User, Role, UserCreate } from '../../types';
@@ -35,11 +35,19 @@ export default function Kullanicilar() {
         }
     };
 
-    const filteredUsers = users.filter(u =>
+    const filteredUsers = useMemo(() => users.filter(u =>
         u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ), [users, searchTerm]);
+
+    // Stable data for DataTable - only update when modal is closed to prevent flickering
+    const [stableTableData, setStableTableData] = useState<User[]>([]);
+    useEffect(() => {
+        if (!showModal) {
+            setStableTableData(filteredUsers);
+        }
+    }, [filteredUsers, showModal]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -164,7 +172,7 @@ export default function Kullanicilar() {
                 <DataTable
                     title="Kullanıcılar"
                     columns={columns}
-                    data={filteredUsers}
+                    data={stableTableData}
                     searchable={true}
                     onSearch={setSearchTerm}
                     searchPlaceholder="Kullanıcı ara..."

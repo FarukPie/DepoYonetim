@@ -139,7 +139,6 @@ public class MockUrunService : IUrunService
         u.DepoId, MockData.Depolar.FirstOrDefault(d => d.Id == u.DepoId)?.Ad,
         u.EkParcaVar, u.Birim.ToString(), u.Maliyet, u.KdvOrani,
         u.GarantiSuresiAy, u.BozuldugundaBakimTipi.ToString(),
-        u.SonBakimTarihi, u.KalibrasyonPeriyoduGun,
         u.StokMiktari, u.Durum.ToString()
     );
 }
@@ -482,7 +481,7 @@ public class MockZimmetService : IZimmetService
         var newId = MockData.Zimmetler.Max(z => z.Id) + 1;
         var entity = new Zimmet
         {
-            Id = newId, UrunId = dto.UrunId, PersonelId = dto.PersonelId,
+            Id = newId, UrunId = dto.UrunId, PersonelId = dto.PersonelId, BolumId = dto.BolumId,
             ZimmetTarihi = dto.ZimmetTarihi, Aciklama = dto.Aciklama
         };
         MockData.Zimmetler.Add(entity);
@@ -507,6 +506,7 @@ public class MockZimmetService : IZimmetService
         {
             entity.UrunId = dto.UrunId;
             entity.PersonelId = dto.PersonelId;
+            entity.BolumId = dto.BolumId;
             entity.ZimmetTarihi = dto.ZimmetTarihi;
             entity.Aciklama = dto.Aciklama;
             if (Enum.TryParse<ZimmetDurum>(dto.Durum, out var durum))
@@ -529,6 +529,8 @@ public class MockZimmetService : IZimmetService
         MockData.Urunler.FirstOrDefault(u => u.Id == z.UrunId)?.Ad ?? "",
         z.PersonelId,
         MockData.Personeller.FirstOrDefault(p => p.Id == z.PersonelId)?.TamAd ?? "",
+        z.BolumId,
+        null, // Mock data does not have Bolumler yet
         z.ZimmetTarihi, z.IadeTarihi, z.Durum.ToString(), z.Aciklama
     );
 }
@@ -561,7 +563,6 @@ public class MockDashboardService : IDashboardService
                 u.DepoId, MockData.Depolar.FirstOrDefault(d => d.Id == u.DepoId)?.Ad,
                 u.EkParcaVar, u.Birim.ToString(), u.Maliyet, u.KdvOrani,
                 u.GarantiSuresiAy, u.BozuldugundaBakimTipi.ToString(),
-                u.SonBakimTarihi, u.KalibrasyonPeriyoduGun,
                 u.StokMiktari, u.Durum.ToString()
             )).ToList();
 
@@ -573,7 +574,6 @@ public class MockDashboardService : IDashboardService
                 u.DepoId, MockData.Depolar.FirstOrDefault(d => d.Id == u.DepoId)?.Ad,
                 u.EkParcaVar, u.Birim.ToString(), u.Maliyet, u.KdvOrani,
                 u.GarantiSuresiAy, u.BozuldugundaBakimTipi.ToString(),
-                u.SonBakimTarihi, u.KalibrasyonPeriyoduGun,
                 u.StokMiktari, u.Durum.ToString()
             )).ToList();
 

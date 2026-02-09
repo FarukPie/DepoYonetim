@@ -71,10 +71,8 @@ public class UrunService : IUrunService
             KdvOrani = dto.KdvOrani,
             GarantiSuresiAy = dto.GarantiSuresiAy,
             BozuldugundaBakimTipi = Enum.Parse<BakimTipi>(dto.BozuldugundaBakimTipi),
-            SonBakimTarihi = dto.SonBakimTarihi,
-            KalibrasyonPeriyoduGun = dto.KalibrasyonPeriyoduGun,
             StokMiktari = dto.StokMiktari,
-            Durum = !string.IsNullOrEmpty(dto.Durum) ? Enum.Parse<UrunDurum>(dto.Durum) : UrunDurum.Aktif
+            Durum = !string.IsNullOrEmpty(dto.Durum) ? Enum.Parse<UrunDurum>(dto.Durum) : UrunDurum.Pasif
         };
 
         var created = await _urunRepository.AddAsync(entity);
@@ -108,8 +106,6 @@ public class UrunService : IUrunService
         entity.GarantiSuresiAy = dto.GarantiSuresiAy;
         entity.GarantiSuresiAy = dto.GarantiSuresiAy;
         entity.BozuldugundaBakimTipi = Enum.Parse<BakimTipi>(dto.BozuldugundaBakimTipi);
-        entity.SonBakimTarihi = dto.SonBakimTarihi;
-        entity.KalibrasyonPeriyoduGun = dto.KalibrasyonPeriyoduGun;
         entity.StokMiktari = dto.StokMiktari;
         if (!string.IsNullOrEmpty(dto.Durum))
         {
@@ -155,8 +151,6 @@ public class UrunService : IUrunService
         u.KdvOrani,
         u.GarantiSuresiAy,
         u.BozuldugundaBakimTipi.ToString(),
-        u.SonBakimTarihi,
-        u.KalibrasyonPeriyoduGun,
         u.StokMiktari,
         u.Durum.ToString()
     );

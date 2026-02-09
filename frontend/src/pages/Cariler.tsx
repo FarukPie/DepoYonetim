@@ -47,6 +47,14 @@ export default function Cariler() {
         );
     }, [cariler, searchTerm]);
 
+    // Stable data for DataTable - only update when modal is closed to prevent flickering
+    const [stableTableData, setStableTableData] = useState<Cari[]>([]);
+    useEffect(() => {
+        if (!showModal && !showViewModal) {
+            setStableTableData(filteredCariler);
+        }
+    }, [filteredCariler, showModal, showViewModal]);
+
     const handleEdit = (cari: Cari) => {
         setEditingId(cari.id);
         setFormData({
@@ -128,24 +136,28 @@ export default function Cariler() {
         {
             header: 'Firma Adı',
             render: (cari: Cari) => (
-                <div>
-                    <div style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{cari.firmaAdi}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{cari.email}</div>
+                <div style={{ color: 'var(--text-primary)', fontWeight: 500, maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cari.firmaAdi}>
+                    {cari.firmaAdi}
                 </div>
             )
         },
-        {
-            header: 'Tip',
-            render: (cari: Cari) => <span className={`badge ${cari.tip === 'Tedarikci' ? 'badge-info' : 'badge-success'}`}>{cari.tip === 'Tedarikci' ? 'Tedarikçi' : 'Müşteri'}</span>
-        },
+        { header: 'Ticaret Sicil No', accessor: 'ticaretSicilNo' as keyof Cari, render: (cari: Cari) => cari.ticaretSicilNo || '-' },
         { header: 'Vergi No', accessor: 'vergiNo' as keyof Cari, render: (cari: Cari) => cari.vergiNo || '-' },
+        { header: 'İl', accessor: 'il' as keyof Cari, render: (cari: Cari) => cari.il || '-' },
+        { header: 'İlçe', accessor: 'ilce' as keyof Cari, render: (cari: Cari) => cari.ilce || '-' },
+        { header: 'Vergi Dairesi', accessor: 'vergiDairesi' as keyof Cari, render: (cari: Cari) => cari.vergiDairesi || '-' },
         {
-            header: 'İl/İlçe',
-            render: (cari: Cari) => cari.il ? `${cari.il}/${cari.ilce}` : '-'
+            header: 'Adres',
+            render: (cari: Cari) => (
+                <div style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cari.adres}>
+                    {cari.adres || '-'}
+                </div>
+            )
         },
-        { header: 'Yetkili', accessor: 'yetkiliKisi' as keyof Cari, render: (cari: Cari) => cari.yetkiliKisi || '-' },
         { header: 'Telefon', accessor: 'telefon' as keyof Cari, render: (cari: Cari) => cari.telefon || '-' },
-        {
+        { header: 'E-Posta', accessor: 'email' as keyof Cari, render: (cari: Cari) => cari.email || '-' },
+        { header: 'Yetkili Kişi', accessor: 'yetkiliKisi' as keyof Cari, render: (cari: Cari) => cari.yetkiliKisi || '-' },
+        ...((canEdit || canDelete) ? [{
             header: 'İşlemler',
             render: (cari: Cari) => (
                 <div className="flex gap-sm">
@@ -164,7 +176,7 @@ export default function Cariler() {
                     )}
                 </div>
             )
-        }
+        }] : [])
     ], [canEdit, canDelete, handleRowClick]);
 
     return (
@@ -173,7 +185,7 @@ export default function Cariler() {
                 <DataTable
                     title="Cariler"
                     columns={columns}
-                    data={filteredCariler}
+                    data={stableTableData}
                     searchable={true}
                     onSearch={(term) => setSearchTerm(term)}
                     searchPlaceholder="Cari ara..."

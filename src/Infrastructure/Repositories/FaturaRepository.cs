@@ -11,6 +11,22 @@ public class FaturaRepository : EfRepository<Fatura>, IFaturaRepository
     {
     }
 
+    public override async Task<IEnumerable<Fatura>> GetAllAsync()
+    {
+        return await _context.Faturalar
+            .Include(f => f.Cari)
+            .Include(f => f.Kalemler)
+            .ToListAsync();
+    }
+
+    public override async Task<Fatura?> GetByIdAsync(int id)
+    {
+        return await _context.Faturalar
+            .Include(f => f.Cari)
+            .Include(f => f.Kalemler)
+            .FirstOrDefaultAsync(f => f.Id == id);
+    }
+
     public async Task<IEnumerable<Fatura>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         return await _context.Faturalar

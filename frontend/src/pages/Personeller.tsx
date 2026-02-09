@@ -48,6 +48,14 @@ export default function Personeller() {
         );
     }, [personeller, searchTerm]);
 
+    // Stable data for DataTable - only update when modal is closed to prevent flickering
+    const [stableTableData, setStableTableData] = useState<Personel[]>([]);
+    useEffect(() => {
+        if (!showModal) {
+            setStableTableData(filteredPersoneller);
+        }
+    }, [filteredPersoneller, showModal]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setShowSaveConfirm(true);
@@ -152,7 +160,7 @@ export default function Personeller() {
                     onAdd={canAdd ? () => setShowModal(true) : undefined}
                     addButtonLabel="Personel Ekle"
                     emptyMessage="Hiç personel bulunamadı."
-                    data={filteredPersoneller}
+                    data={stableTableData}
                     columns={columns}
                 />
             </div>
