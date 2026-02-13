@@ -14,7 +14,7 @@ public class ZimmetRepository : EfRepository<Zimmet>, IZimmetRepository
     public override async Task<IEnumerable<Zimmet>> GetAllAsync()
     {
         return await _context.Zimmetler
-            .Include(z => z.Urun)
+            .Include(z => z.FaturaKalemi)
             .Include(z => z.Personel)
             .Include(z => z.Bolum)
             .OrderByDescending(z => z.CreatedAt)
@@ -24,7 +24,7 @@ public class ZimmetRepository : EfRepository<Zimmet>, IZimmetRepository
     public override async Task<Zimmet?> GetByIdAsync(int id)
     {
         return await _context.Zimmetler
-            .Include(z => z.Urun)
+            .Include(z => z.FaturaKalemi)
             .Include(z => z.Personel)
             .Include(z => z.Bolum)
             .FirstOrDefaultAsync(z => z.Id == id);
@@ -35,7 +35,7 @@ public class ZimmetRepository : EfRepository<Zimmet>, IZimmetRepository
         return await _context.Zimmetler
             .OrderByDescending(z => z.ZimmetTarihi)
             .Take(count)
-            .Include(z => z.Urun)
+            .Include(z => z.FaturaKalemi)
             .Include(z => z.Personel)
             .Include(z => z.Bolum)
             .ToListAsync();
@@ -45,7 +45,10 @@ public class ZimmetRepository : EfRepository<Zimmet>, IZimmetRepository
     {
         return await _context.Zimmetler
             .Where(z => z.PersonelId == personelId)
-            .Include(z => z.Urun)
+            .Include(z => z.FaturaKalemi)
+            .Include(z => z.Personel)
+            .Include(z => z.Bolum)
+            .OrderByDescending(z => z.ZimmetTarihi)
             .ToListAsync();
     }
 }

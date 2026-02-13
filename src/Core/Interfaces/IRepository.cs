@@ -10,19 +10,22 @@ public interface IRepository<T> where T : BaseEntity
     Task UpdateAsync(T entity);
     Task DeleteAsync(int id);
     Task<IEnumerable<T>> FindAsync(System.Linq.Expressions.Expression<Func<T, bool>> predicate);
+    Task<DepoYonetim.Core.Common.PagedResult<T>> GetPagedAsync(
+        int pageNumber, 
+        int pageSize, 
+        System.Linq.Expressions.Expression<Func<T, bool>>? predicate = null,
+        Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
+        params System.Linq.Expressions.Expression<Func<T, object?>>[] includes);
 }
 
-public interface IDepoRepository : IRepository<Depo>
-{
-    Task<IEnumerable<Depo>> GetActiveDeposAsync();
-}
 
-public interface IUrunRepository : IRepository<Urun>
+
+public interface IMalzemeKalemiRepository : IRepository<MalzemeKalemi>
 {
-    Task<IEnumerable<Urun>> GetByDepoIdAsync(int depoId);
-    Task<IEnumerable<Urun>> SearchAsync(string searchTerm);
-    Task<IEnumerable<Urun>> GetBakimdakiUrunlerAsync();
-    Task<IEnumerable<Urun>> GetTamirBekleyenlerAsync();
+
+    Task<IEnumerable<MalzemeKalemi>> SearchAsync(string searchTerm);
+    Task<IEnumerable<MalzemeKalemi>> GetBakimdakiMalzemelerAsync();
+    Task<IEnumerable<MalzemeKalemi>> GetTamirBekleyenlerAsync();
 }
 
 public interface IKategoriRepository : IRepository<Kategori>

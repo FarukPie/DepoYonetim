@@ -28,12 +28,26 @@ public class ZimmetlerController : ControllerBase
         return Ok(zimmetler);
     }
 
+    [HttpGet("paged")]
+    public async Task<ActionResult<PagedResultDto<ZimmetDto>>> GetPaged([FromQuery] PaginationRequest request)
+    {
+        var result = await _zimmetService.GetPagedAsync(request);
+        return Ok(result);
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<ZimmetDto>> GetById(int id)
     {
         var zimmet = await _zimmetService.GetByIdAsync(id);
         if (zimmet == null) return NotFound();
         return Ok(zimmet);
+    }
+
+    [HttpGet("personel/{id}")]
+    public async Task<ActionResult<IEnumerable<ZimmetDto>>> GetByPersonelId(int id)
+    {
+        var zimmetler = await _zimmetService.GetByPersonelIdAsync(id);
+        return Ok(zimmetler);
     }
 
     [HttpPost]

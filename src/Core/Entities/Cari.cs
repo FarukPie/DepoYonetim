@@ -13,14 +13,10 @@ public class Cari : BaseEntity
     public string? Il { get; set; }
     public string? Ilce { get; set; }
     public string? Telefon { get; set; }
-    public string? Fax { get; set; }
     public string? Email { get; set; }
-    public string? WebSitesi { get; set; }
     public string? YetkiliKisi { get; set; }
     public string? YetkiliTelefon { get; set; }
-    public string? BankaAdi { get; set; }
-    public string? IbanNo { get; set; }
-    public bool Aktif { get; set; } = true;
+    public string? HastaneKod { get; set; } // LongText support via conventions or configuration
 
     // Navigation Properties
     public ICollection<Fatura> Faturalar { get; set; } = new List<Fatura>();

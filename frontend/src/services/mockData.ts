@@ -1,5 +1,5 @@
 import {
-    Dashboard, Depo, Urun, Kategori, Personel, Cari, Fatura, Zimmet
+    Dashboard, Depo, MalzemeKalemi, Kategori, Personel, Cari, Fatura, Zimmet, Talep, FaturaKalemi, SystemLog, AuthUser, User, UserCreate, UserUpdate, Role, RoleCreate, PageOption, PermissionOption, TalepCreate
 } from '../types';
 
 // ===== MOCK DATA - Türkçe ===== 
@@ -33,42 +33,42 @@ const depolar: Depo[] = [
     { id: 5, ad: 'Arşiv Deposu', aciklama: 'Eski ve kullanılmayan ekipmanlar', sorumluPersonelId: 5, sorumluPersonelAdi: 'Can Öztürk', aktif: false, urunSayisi: 0 },
 ];
 
-const urunler: Urun[] = [
-    { id: 1, ad: 'Philips MX800 Hasta Monitörü', barkod: 'PHM001', kategoriId: 6, kategoriAdi: 'Hasta Monitörleri', depoId: 2, depoAdi: 'Tıbbi Cihaz Deposu', ekParcaVar: true, birim: 'Adet', maliyet: 45000, kdvOrani: 18, garantiSuresiAy: 24, bozuldugundaBakimTipi: 'Kalibrasyon', stokMiktari: 5, durum: 'Aktif' },
-    { id: 2, ad: 'GE Voluson E8 Ultrason', barkod: 'GEU002', kategoriId: 5, kategoriAdi: 'Görüntüleme Cihazları', depoId: 2, depoAdi: 'Tıbbi Cihaz Deposu', ekParcaVar: true, birim: 'Adet', maliyet: 320000, kdvOrani: 18, garantiSuresiAy: 36, bozuldugundaBakimTipi: 'Kalibrasyon', stokMiktari: 2, durum: 'Aktif' },
-    { id: 3, ad: 'Siemens Mobilett XP Röntgen', barkod: 'SMR003', kategoriId: 5, kategoriAdi: 'Görüntüleme Cihazları', depoId: 2, depoAdi: 'Tıbbi Cihaz Deposu', ekParcaVar: true, birim: 'Adet', maliyet: 180000, kdvOrani: 18, garantiSuresiAy: 24, bozuldugundaBakimTipi: 'Kalibrasyon', stokMiktari: 1, durum: 'Bakimda' },
-    { id: 4, ad: 'Drager Evita V300 Ventilatör', barkod: 'DRV004', kategoriId: 7, kategoriAdi: 'Solunum Cihazları', depoId: 2, depoAdi: 'Tıbbi Cihaz Deposu', ekParcaVar: true, birim: 'Adet', maliyet: 95000, kdvOrani: 18, garantiSuresiAy: 24, bozuldugundaBakimTipi: 'Bakim', stokMiktari: 8, durum: 'Aktif' },
-    { id: 5, ad: 'Dell OptiPlex 7090 Bilgisayar', barkod: 'DLC005', kategoriId: 8, kategoriAdi: 'Bilgisayarlar', depoId: 3, depoAdi: 'BT Deposu', ekParcaVar: false, birim: 'Adet', maliyet: 18000, kdvOrani: 18, garantiSuresiAy: 36, bozuldugundaBakimTipi: 'Bakim', stokMiktari: 25, durum: 'Aktif' },
-    { id: 6, ad: 'HP LaserJet Pro M404dn Yazıcı', barkod: 'HPP006', kategoriId: 9, kategoriAdi: 'Yazıcılar', depoId: 3, depoAdi: 'BT Deposu', ekParcaVar: false, birim: 'Adet', maliyet: 4500, kdvOrani: 18, garantiSuresiAy: 12, bozuldugundaBakimTipi: 'Bakim', stokMiktari: 15, durum: 'Aktif' },
-    { id: 7, ad: 'Roche Cobas c311 Biyokimya Analizörü', barkod: 'RCA007', kategoriId: 10, kategoriAdi: 'Analiz Cihazları', depoId: 2, depoAdi: 'Tıbbi Cihaz Deposu', ekParcaVar: true, birim: 'Adet', maliyet: 250000, kdvOrani: 18, garantiSuresiAy: 24, bozuldugundaBakimTipi: 'Kalibrasyon', stokMiktari: 1, durum: 'TamirBekliyor' },
-    { id: 8, ad: 'Sysmex XN-1000 Hematoloji Analizörü', barkod: 'SYH008', kategoriId: 10, kategoriAdi: 'Analiz Cihazları', depoId: 2, depoAdi: 'Tıbbi Cihaz Deposu', ekParcaVar: true, birim: 'Adet', maliyet: 180000, kdvOrani: 18, garantiSuresiAy: 24, bozuldugundaBakimTipi: 'Kalibrasyon', stokMiktari: 1, durum: 'TamirBekliyor' },
-    { id: 9, ad: 'Mindray BeneHeart D6 Defibrilatör', barkod: 'MBD009', kategoriId: 6, kategoriAdi: 'Hasta Monitörleri', depoId: 2, depoAdi: 'Tıbbi Cihaz Deposu', ekParcaVar: true, birim: 'Adet', maliyet: 35000, kdvOrani: 18, garantiSuresiAy: 24, bozuldugundaBakimTipi: 'Kalibrasyon', stokMiktari: 6, durum: 'Bakimda' },
-    { id: 10, ad: 'Lenovo ThinkPad T14 Dizüstü', barkod: 'LNT010', kategoriId: 8, kategoriAdi: 'Bilgisayarlar', depoId: 3, depoAdi: 'BT Deposu', ekParcaVar: false, birim: 'Adet', maliyet: 25000, kdvOrani: 18, garantiSuresiAy: 36, bozuldugundaBakimTipi: 'Bakim', stokMiktari: 10, durum: 'Aktif' },
+const malzemeler: MalzemeKalemi[] = [
+    { id: 1, ad: 'Philips MX800 Hasta Monitörü', dmbNo: 'DMB001', ekParcaVar: true, birim: 'Adet', rutin: 'Yıllık', aciklama: 'Yoğun bakım monitörü', state: 0 },
+    { id: 2, ad: 'GE Voluson E8 Ultrason', dmbNo: 'DMB002', ekParcaVar: true, birim: 'Adet', rutin: '6 Aylık', aciklama: 'Kadın doğum ultrasonu', state: 0 },
+    { id: 3, ad: 'Siemens Mobilett XP Röntgen', dmbNo: 'DMB003', ekParcaVar: true, birim: 'Adet', rutin: 'Yıllık', aciklama: 'Mobil röntgen cihazı', state: 1 }, // Bakımda
+    { id: 4, ad: 'Drager Evita V300 Ventilatör', dmbNo: 'DMB004', ekParcaVar: true, birim: 'Adet', rutin: '6 Aylık', aciklama: 'Yoğun bakım ventilatörü', state: 0 },
+    { id: 5, ad: 'Dell OptiPlex 7090 Bilgisayar', dmbNo: 'DMB005', ekParcaVar: false, birim: 'Adet', rutin: 'Yıllık', aciklama: 'Ofis bilgisayarı', state: 0 },
+    { id: 6, ad: 'HP LaserJet Pro M404dn Yazıcı', dmbNo: 'DMB006', ekParcaVar: false, birim: 'Adet', rutin: 'Yıllık', aciklama: 'Lazer yazıcı', state: 0 },
+    { id: 7, ad: 'Roche Cobas c311 Biyokimya Analizörü', dmbNo: 'DMB007', ekParcaVar: true, birim: 'Adet', rutin: '3 Aylık', aciklama: 'Biyokimya otoanalizör', state: 2 }, // Tamir Bekliyor
+    { id: 8, ad: 'Sysmex XN-1000 Hematoloji Analizörü', dmbNo: 'DMB008', ekParcaVar: true, birim: 'Adet', rutin: '3 Aylık', aciklama: 'Kan sayım cihazı', state: 2 }, // Tamir Bekliyor
+    { id: 9, ad: 'Mindray BeneHeart D6 Defibrilatör', dmbNo: 'DMB009', ekParcaVar: true, birim: 'Adet', rutin: 'Yıllık', aciklama: 'Defibrilatör', state: 1 }, // Bakımda
+    { id: 10, ad: 'Lenovo ThinkPad T14 Dizüstü', dmbNo: 'DMB010', ekParcaVar: false, birim: 'Adet', rutin: 'Yıllık', aciklama: 'Taşınabilir bilgisayar', state: 0 },
 ];
 
 const cariler: Cari[] = [
-    { id: 1, firmaAdi: 'MedTech Tıbbi Cihazlar A.Ş.', tip: 'Tedarikci', vergiNo: '1234567890', vergiDairesi: 'Büyük Mükellefler', adres: 'Atatürk Cad. No:123', il: 'İstanbul', ilce: 'Şişli', telefon: '0212 333 4455', fax: '0212 333 4456', email: 'info@medtech.com.tr', webSitesi: 'www.medtech.com.tr', yetkiliKisi: 'Hakan Özdemir', yetkiliTelefon: '0532 999 8877', bankaAdi: 'Garanti Bankası', ibanNo: 'TR12 0006 2000 0001 2345 6789 00', aktif: true },
-    { id: 2, firmaAdi: 'BioLab Laboratuvar Sistemleri Ltd.', tip: 'Tedarikci', vergiNo: '2345678901', vergiDairesi: 'Kadıköy', adres: 'İnönü Mah. Bilim Sok. No:45', il: 'İstanbul', ilce: 'Kadıköy', telefon: '0216 444 5566', email: 'satis@biolab.com.tr', yetkiliKisi: 'Selin Aktaş', yetkiliTelefon: '0533 888 7766', aktif: true },
-    { id: 3, firmaAdi: 'TechPro Bilişim Hizmetleri', tip: 'Tedarikci', vergiNo: '3456789012', vergiDairesi: 'Mecidiyeköy', adres: 'Gayrettepe İş Merkezi K:5', il: 'İstanbul', ilce: 'Beşiktaş', telefon: '0212 555 6677', email: 'info@techpro.com.tr', yetkiliKisi: 'Burak Yıldırım', aktif: true },
-    { id: 4, firmaAdi: 'Medikal Plus Sağlık Ürünleri', tip: 'Tedarikci', vergiNo: '4567890123', vergiDairesi: 'Konak', adres: 'Alsancak Mah. 1453 Sok. No:12', il: 'İzmir', ilce: 'Konak', telefon: '0232 666 7788', email: 'siparis@medikalplus.com', yetkiliKisi: 'Deniz Aydın', aktif: true },
-    { id: 5, firmaAdi: 'Servis Teknik Mühendislik', tip: 'Tedarikci', vergiNo: '5678901234', vergiDairesi: 'Çankaya', adres: 'Kızılay Mah. Bakım Sok. No:8', il: 'Ankara', ilce: 'Çankaya', telefon: '0312 777 8899', email: 'servis@servisteknik.com', yetkiliKisi: 'Ali Vural', aktif: true },
+    { id: 1, firmaAdi: 'MedTech Tıbbi Cihazlar A.Ş.', tip: 'Tedarikci', vergiNo: '1234567890', vergiDairesi: 'Büyük Mükellefler', adres: 'Atatürk Cad. No:123', il: 'İstanbul', ilce: 'Şişli', telefon: '0212 333 4455', email: 'info@medtech.com.tr', yetkiliKisi: 'Hakan Özdemir', yetkiliTelefon: '0532 999 8877' },
+    { id: 2, firmaAdi: 'BioLab Laboratuvar Sistemleri Ltd.', tip: 'Tedarikci', vergiNo: '2345678901', vergiDairesi: 'Kadıköy', adres: 'İnönü Mah. Bilim Sok. No:45', il: 'İstanbul', ilce: 'Kadıköy', telefon: '0216 444 5566', email: 'satis@biolab.com.tr', yetkiliKisi: 'Selin Aktaş', yetkiliTelefon: '0533 888 7766' },
+    { id: 3, firmaAdi: 'TechPro Bilişim Hizmetleri', tip: 'Tedarikci', vergiNo: '3456789012', vergiDairesi: 'Mecidiyeköy', adres: 'Gayrettepe İş Merkezi K:5', il: 'İstanbul', ilce: 'Beşiktaş', telefon: '0212 555 6677', email: 'info@techpro.com.tr', yetkiliKisi: 'Burak Yıldırım' },
+    { id: 4, firmaAdi: 'Medikal Plus Sağlık Ürünleri', tip: 'Tedarikci', vergiNo: '4567890123', vergiDairesi: 'Konak', adres: 'Alsancak Mah. 1453 Sok. No:12', il: 'İzmir', ilce: 'Konak', telefon: '0232 666 7788', email: 'siparis@medikalplus.com', yetkiliKisi: 'Deniz Aydın' },
+    { id: 5, firmaAdi: 'Servis Teknik Mühendislik', tip: 'Tedarikci', vergiNo: '5678901234', vergiDairesi: 'Çankaya', adres: 'Kızılay Mah. Bakım Sok. No:8', il: 'Ankara', ilce: 'Çankaya', telefon: '0312 777 8899', email: 'servis@servisteknik.com', yetkiliKisi: 'Ali Vural' },
 ];
 
 const faturalar: Fatura[] = [
-    { id: 1, faturaNo: 'FTR-2026-001', cariId: 1, cariAdi: 'MedTech Tıbbi Cihazlar A.Ş.', faturaTarihi: '2026-01-05', araToplam: 270000, toplamIndirim: 0, toplamKdv: 48600, genelToplam: 318600, aciklama: 'Hasta monitörü alımı', kalemler: [{ id: 1, urunId: 1, urunAdi: 'Philips MX800 Hasta Monitörü', miktar: 6, birimFiyat: 45000, indirimOrani: 0, kdvOrani: 18, toplam: 318600 }] },
-    { id: 2, faturaNo: 'FTR-2026-002', cariId: 2, cariAdi: 'BioLab Laboratuvar Sistemleri Ltd.', faturaTarihi: '2026-01-10', araToplam: 250000, toplamIndirim: 12500, toplamKdv: 42750, genelToplam: 280250, aciklama: 'Biyokimya analizörü', kalemler: [{ id: 2, urunId: 7, urunAdi: 'Roche Cobas c311 Biyokimya Analizörü', miktar: 1, birimFiyat: 250000, indirimOrani: 5, kdvOrani: 18, toplam: 280250 }] },
-    { id: 3, faturaNo: 'FTR-2026-003', cariId: 3, cariAdi: 'TechPro Bilişim Hizmetleri', faturaTarihi: '2026-01-15', araToplam: 90000, toplamIndirim: 0, toplamKdv: 16200, genelToplam: 106200, aciklama: 'Bilgisayar alımı (5 adet)', kalemler: [{ id: 3, urunId: 5, urunAdi: 'Dell OptiPlex 7090 Bilgisayar', miktar: 5, birimFiyat: 18000, indirimOrani: 0, kdvOrani: 18, toplam: 106200 }] },
-    { id: 4, faturaNo: 'FTR-2026-004', cariId: 1, cariAdi: 'MedTech Tıbbi Cihazlar A.Ş.', faturaTarihi: '2026-01-20', araToplam: 95000, toplamIndirim: 5000, toplamKdv: 16200, genelToplam: 106200, aciklama: 'Ventilatör alımı', kalemler: [{ id: 4, urunId: 4, urunAdi: 'Drager Evita V300 Ventilatör', miktar: 1, birimFiyat: 95000, indirimOrani: 5.26, kdvOrani: 18, toplam: 106200 }] },
-    { id: 5, faturaNo: 'FTR-2026-005', cariId: 5, cariAdi: 'Servis Teknik Mühendislik', faturaTarihi: '2026-01-25', araToplam: 15000, toplamIndirim: 0, toplamKdv: 2700, genelToplam: 17700, aciklama: 'Bakım ve onarım hizmeti', kalemler: [{ id: 5, urunAdi: 'Röntgen Cihazı Periyodik Bakım', miktar: 1, birimFiyat: 15000, indirimOrani: 0, kdvOrani: 18, toplam: 17700 }] },
+    { id: 1, faturaNo: 'FTR-2026-001', cariId: 1, cariAdi: 'MedTech Tıbbi Cihazlar A.Ş.', faturaTarihi: '2026-01-05', araToplam: 270000, toplamIndirim: 0, toplamKdv: 48600, genelToplam: 318600, aciklama: 'Hasta monitörü alımı', kalemler: [{ id: 1, malzemeKalemiId: 1, malzemeAdi: 'Philips MX800 Hasta Monitörü', miktar: 6, birimFiyat: 45000, indirimOrani: 0, kdvOrani: 18, toplam: 318600, zimmetDurum: false }] },
+    { id: 2, faturaNo: 'FTR-2026-002', cariId: 2, cariAdi: 'BioLab Laboratuvar Sistemleri Ltd.', faturaTarihi: '2026-01-10', araToplam: 250000, toplamIndirim: 12500, toplamKdv: 42750, genelToplam: 280250, aciklama: 'Biyokimya analizörü', kalemler: [{ id: 2, malzemeKalemiId: 7, malzemeAdi: 'Roche Cobas c311 Biyokimya Analizörü', miktar: 1, birimFiyat: 250000, indirimOrani: 5, kdvOrani: 18, toplam: 280250, zimmetDurum: false }] },
+    { id: 3, faturaNo: 'FTR-2026-003', cariId: 3, cariAdi: 'TechPro Bilişim Hizmetleri', faturaTarihi: '2026-01-15', araToplam: 90000, toplamIndirim: 0, toplamKdv: 16200, genelToplam: 106200, aciklama: 'Bilgisayar alımı (5 adet)', kalemler: [{ id: 3, malzemeKalemiId: 5, malzemeAdi: 'Dell OptiPlex 7090 Bilgisayar', miktar: 5, birimFiyat: 18000, indirimOrani: 0, kdvOrani: 18, toplam: 106200, zimmetDurum: false }] },
+    { id: 4, faturaNo: 'FTR-2026-004', cariId: 1, cariAdi: 'MedTech Tıbbi Cihazlar A.Ş.', faturaTarihi: '2026-01-20', araToplam: 95000, toplamIndirim: 5000, toplamKdv: 16200, genelToplam: 106200, aciklama: 'Ventilatör alımı', kalemler: [{ id: 4, malzemeKalemiId: 4, malzemeAdi: 'Drager Evita V300 Ventilatör', miktar: 1, birimFiyat: 95000, indirimOrani: 5.26, kdvOrani: 18, toplam: 106200, zimmetDurum: false }] },
+    { id: 5, faturaNo: 'FTR-2026-005', cariId: 5, cariAdi: 'Servis Teknik Mühendislik', faturaTarihi: '2026-01-25', araToplam: 15000, toplamIndirim: 0, toplamKdv: 2700, genelToplam: 17700, aciklama: 'Bakım ve onarım hizmeti', kalemler: [{ id: 5, malzemeAdi: 'Röntgen Cihazı Periyodik Bakım', miktar: 1, birimFiyat: 15000, indirimOrani: 0, kdvOrani: 18, toplam: 17700, zimmetDurum: false }] },
 ];
 
 const zimmetler: Zimmet[] = [
-    { id: 1, urunId: 5, urunAdi: 'Dell OptiPlex 7090 Bilgisayar', personelId: 1, personelAdi: 'Ahmet Yılmaz', zimmetTarihi: '2026-01-10', durum: 'Aktif', aciklama: 'BT departmanı için' },
-    { id: 2, urunId: 10, urunAdi: 'Lenovo ThinkPad T14 Dizüstü', personelId: 2, personelAdi: 'Fatma Demir', zimmetTarihi: '2026-01-12', durum: 'Aktif', aciklama: 'Muhasebe dizüstü bilgisayar' },
-    { id: 3, urunId: 6, urunAdi: 'HP LaserJet Pro M404dn Yazıcı', personelId: 4, personelAdi: 'Ayşe Çelik', zimmetTarihi: '2026-01-15', durum: 'Aktif', aciklama: 'Satın alma yazıcısı' },
-    { id: 4, urunId: 5, urunAdi: 'Dell OptiPlex 7090 Bilgisayar', personelId: 3, personelAdi: 'Mehmet Kaya', zimmetTarihi: '2026-01-18', durum: 'Aktif', aciklama: 'Teknik servis bilgisayarı' },
-    { id: 5, urunId: 10, urunAdi: 'Lenovo ThinkPad T14 Dizüstü', personelId: 1, personelAdi: 'Ahmet Yılmaz', zimmetTarihi: '2026-01-22', durum: 'Aktif', aciklama: 'Yedek dizüstü' },
-    { id: 6, urunId: 6, urunAdi: 'HP LaserJet Pro M404dn Yazıcı', personelId: 5, personelAdi: 'Can Öztürk', zimmetTarihi: '2026-01-25', durum: 'Aktif', aciklama: 'Depo yönetimi yazıcısı' },
+    { id: 1, faturaKalemiId: 3, malzemeAdi: 'Dell OptiPlex 7090 Bilgisayar', personelId: 1, personelAdi: 'Ahmet Yılmaz', zimmetTarihi: '2026-01-10', durum: 'Aktif', aciklama: 'BT departmanı için' },
+    { id: 2, faturaKalemiId: 1, malzemeAdi: 'Philips MX800 Hasta Monitörü', personelId: 2, personelAdi: 'Fatma Demir', zimmetTarihi: '2026-01-12', durum: 'Aktif', aciklama: 'Hasta monitörü zimmetleme' },
+    { id: 3, faturaKalemiId: 2, malzemeAdi: 'Roche Cobas c311 Biyokimya Analizörü', personelId: 4, personelAdi: 'Ayşe Çelik', zimmetTarihi: '2026-01-15', durum: 'Aktif', aciklama: 'Biyokimya analizörü' },
+    { id: 4, faturaKalemiId: 3, malzemeAdi: 'Dell OptiPlex 7090 Bilgisayar', personelId: 3, personelAdi: 'Mehmet Kaya', zimmetTarihi: '2026-01-18', durum: 'Aktif', aciklama: 'Teknik servis bilgisayarı' },
+    { id: 5, faturaKalemiId: 4, malzemeAdi: 'Drager Evita V300 Ventilatör', personelId: 1, personelAdi: 'Ahmet Yılmaz', zimmetTarihi: '2026-01-22', durum: 'Aktif', aciklama: 'Ventilatör zimmetleme' },
+    { id: 6, faturaKalemiId: 1, malzemeAdi: 'Philips MX800 Hasta Monitörü', personelId: 5, personelAdi: 'Can Öztürk', zimmetTarihi: '2026-01-25', durum: 'Aktif', aciklama: 'Depo yönetimi monitörü' },
 ];
 
 // ===== SERVICE FUNCTIONS =====
@@ -96,14 +96,14 @@ export const mockDataService = {
     // Dashboard
     getDashboard: (): Dashboard => ({
         zimmetliCalisanSayisi: 5,
-        toplamStok: urunler.reduce((sum, u) => sum + u.stokMiktari, 0),
+        toplamStok: malzemeler.length,
         toplamKategori: kategoriler.length,
-        bakimdakiUrunSayisi: urunler.filter(u => u.durum === 'Bakimda').length,
-        tamirBekleyenSayisi: urunler.filter(u => u.durum === 'TamirBekliyor').length,
+        bakimdakiUrunSayisi: malzemeler.filter(u => u.state === 1).length,
+        tamirBekleyenSayisi: malzemeler.filter(u => u.state === 2).length,
         sonZimmetler: zimmetler.slice(-5).reverse(),
-        tamirBekleyenUrunler: urunler.filter(u => u.durum === 'TamirBekliyor'),
+        tamirBekleyenMalzemeler: malzemeler.filter(u => u.state === 2),
         onaylananTalepler: talepler.filter(t => t.durum === 'Onaylandi'),
-        bakimdakiUrunler: urunler.filter(u => u.durum === 'Bakimda'),
+        bakimdakiMalzemeler: malzemeler.filter(u => u.state === 1),
     }),
 
     // Depolar
@@ -126,26 +126,25 @@ export const mockDataService = {
         if (index > -1) depolar.splice(index, 1);
     },
 
-    // Urunler
-    getUrunler: () => [...urunler],
-    getUrunlerByDepo: (depoId: number) => urunler.filter(u => u.depoId === depoId),
-    searchUrunler: (term: string) => urunler.filter(u => u.ad.toLowerCase().includes(term.toLowerCase())),
-    getUrun: (id: number) => urunler.find(u => u.id === id),
-    addUrun: (urun: Omit<Urun, 'id'>) => {
-        const newUrun = { ...urun, id: Math.max(...urunler.map(u => u.id)) + 1 };
-        urunler.push(newUrun as Urun);
-        return newUrun;
+    // Malzemeler
+    getMalzemeler: () => [...malzemeler],
+    searchMalzemeler: (term: string) => malzemeler.filter(u => u.ad.toLowerCase().includes(term.toLowerCase())),
+    getMalzeme: (id: number) => malzemeler.find(u => u.id === id),
+    addMalzeme: (malzeme: Omit<MalzemeKalemi, 'id'>) => {
+        const newMalzeme = { ...malzeme, id: Math.max(...malzemeler.map(u => u.id)) + 1 };
+        malzemeler.push(newMalzeme as MalzemeKalemi);
+        return newMalzeme;
     },
-    updateUrun: (id: number, data: Partial<Urun>) => {
-        const index = urunler.findIndex(u => u.id === id);
+    updateMalzeme: (id: number, data: Partial<MalzemeKalemi>) => {
+        const index = malzemeler.findIndex(u => u.id === id);
         if (index > -1) {
-            urunler[index] = { ...urunler[index], ...data };
-            return urunler[index];
+            malzemeler[index] = { ...malzemeler[index], ...data };
+            return malzemeler[index];
         }
     },
-    deleteUrun: (id: number) => {
-        const index = urunler.findIndex(u => u.id === id);
-        if (index > -1) urunler.splice(index, 1);
+    deleteMalzeme: (id: number) => {
+        const index = malzemeler.findIndex(u => u.id === id);
+        if (index > -1) malzemeler.splice(index, 1);
     },
 
     // Kategoriler
@@ -190,8 +189,8 @@ export const mockDataService = {
     getCariler: () => [...cariler],
     searchCariler: (term: string) => cariler.filter(c => c.firmaAdi.toLowerCase().includes(term.toLowerCase())),
     getCari: (id: number) => cariler.find(c => c.id === id),
-    addCari: (cari: Omit<Cari, 'id' | 'aktif'>) => {
-        const newCari = { ...cari, id: Math.max(...cariler.map(c => c.id)) + 1, aktif: true };
+    addCari: (cari: Omit<Cari, 'id'>) => {
+        const newCari = { ...cari, id: Math.max(...cariler.map(c => c.id)) + 1 };
         cariler.push(newCari as Cari);
         return newCari;
     },
@@ -251,8 +250,7 @@ export const mockDataService = {
         };
         bakimTalepleri.push(newTalep);
 
-        // Talepler listesine de ekle (Admin panelinde görünmesi için)
-        // Not: Gerçek uygulamada bu işlem backend tarafında transaction içinde yapılmalı
+        // Talepler listesine de ekle
         const currentUser = authService.getCurrentUser();
         taleplerService.create({
             talepTipi: talep.talepTipi,
@@ -269,30 +267,27 @@ export const mockDataService = {
         });
 
         // Ürün durumunu güncelle
-        const urunIndex = urunler.findIndex(u => u.id === talep.urunId);
+        const urunIndex = malzemeler.findIndex(u => u.id === talep.urunId);
         if (urunIndex > -1) {
-            urunler[urunIndex].durum = talep.talepTipi === 'Tamir' ? 'TamirBekliyor' : 'Bakimda';
+            malzemeler[urunIndex].state = talep.talepTipi === 'Tamir' ? 2 : 1;
         }
         return newTalep;
     },
 };
-
-// ===== RBAC DATA =====
-import { AuthUser, User, UserCreate, UserUpdate, Role, RoleCreate, Talep, TalepCreate, SystemLog, PageOption, PermissionOption } from '../types';
 
 const roles: Role[] = [
     {
         id: 1,
         name: 'Admin',
         description: 'Sistem yöneticisi - Tüm yetkilere sahip',
-        pagePermissions: ['dashboard', 'depolar', 'urunler', 'faturalar', 'cariler', 'kategoriler', 'personeller', 'bolumler', 'zimmetler', 'kullanicilar', 'roller', 'talepler', 'loglar'],
+        pagePermissions: ['dashboard', 'depolar', 'malzemeler', 'faturalar', 'cariler', 'kategoriler', 'personeller', 'bolumler', 'zimmetler', 'kullanicilar', 'roller', 'talepler', 'loglar'],
         entityPermissions: {
             cari: ['add', 'edit', 'delete'],
             depo: ['add', 'edit', 'delete'],
             kategori: ['add', 'edit', 'delete'],
             kullanici: ['add', 'edit', 'delete'],
             fatura: ['add', 'edit', 'delete'],
-            urun: ['add', 'edit', 'delete'],
+            malzeme: ['add', 'edit', 'delete'],
             personel: ['add', 'edit', 'delete'],
             zimmet: ['add', 'edit', 'delete'],
             bolum: ['add', 'edit', 'delete']
@@ -302,7 +297,7 @@ const roles: Role[] = [
         id: 2,
         name: 'Kullanici',
         description: 'Standart kullanıcı - Sadece görüntüleme ve talep oluşturma',
-        pagePermissions: ['dashboard', 'depolar', 'urunler', 'kategoriler', 'zimmetler', 'talep-olustur'],
+        pagePermissions: ['dashboard', 'depolar', 'malzemeler', 'kategoriler', 'zimmetler', 'talep-olustur'],
         entityPermissions: {}
     },
 ];
@@ -327,7 +322,7 @@ const talepler: Talep[] = [
 
 const systemLogs: SystemLog[] = [
     { id: 1, userId: 1, userName: 'Sistem Yöneticisi', action: 'Login', entityType: 'User', details: 'Sisteme giriş yapıldı', timestamp: '2026-01-29T08:00:00' },
-    { id: 2, userId: 1, userName: 'Sistem Yöneticisi', action: 'Create', entityType: 'Urun', entityId: 10, details: 'Lenovo ThinkPad T14 Dizüstü eklendi', timestamp: '2026-01-28T14:30:00' },
+    { id: 2, userId: 1, userName: 'Sistem Yöneticisi', action: 'Create', entityType: 'MalzemeKalemi', entityId: 10, details: 'Lenovo ThinkPad T14 Dizüstü eklendi', timestamp: '2026-01-28T14:30:00' },
     { id: 3, userId: 1, userName: 'Sistem Yöneticisi', action: 'Approve', entityType: 'Talep', entityId: 3, details: 'Cerrahi Aletler Kategorisi talebi onaylandı', timestamp: '2026-01-24T16:00:00' },
     { id: 4, userId: 2, userName: 'Demo Kullanıcı', action: 'Login', entityType: 'User', details: 'Sisteme giriş yapıldı', timestamp: '2026-01-25T10:00:00' },
     { id: 5, userId: 2, userName: 'Demo Kullanıcı', action: 'Create', entityType: 'Talep', entityId: 1, details: 'Yeni tedarikçi ekleme talebi oluşturuldu', timestamp: '2026-01-25T10:30:00' },
@@ -537,7 +532,7 @@ export const rolesService = {
     getAvailablePages: (): PageOption[] => [
         { key: 'dashboard', label: 'Dashboard' },
         { key: 'depolar', label: 'Depolar' },
-        { key: 'urunler', label: 'Ürünler' },
+        { key: 'malzemeler', label: 'Malzemeler' },
         { key: 'faturalar', label: 'Faturalar' },
         { key: 'cariler', label: 'Cariler' },
         { key: 'kategoriler', label: 'Kategoriler' },
@@ -555,9 +550,10 @@ export const rolesService = {
         { entity: 'kategori', label: 'Kategoriler', actions: ['add', 'edit', 'delete'] },
         { entity: 'kullanici', label: 'Kullanıcılar', actions: ['add', 'edit', 'delete'] },
         { entity: 'fatura', label: 'Faturalar', actions: ['add', 'edit', 'delete'] },
-        { entity: 'urun', label: 'Ürünler', actions: ['add', 'edit', 'delete'] },
+        { entity: 'malzeme', label: 'Malzemeler', actions: ['add', 'edit', 'delete'] },
         { entity: 'personel', label: 'Personeller', actions: ['add', 'edit', 'delete'] },
         { entity: 'zimmet', label: 'Zimmetler', actions: ['add', 'edit', 'delete'] },
+        { entity: 'bolum', label: 'Bölümler', actions: ['add', 'edit', 'delete'] },
     ]
 };
 
@@ -631,6 +627,5 @@ export const logsService = {
         return result.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     },
     getActions: () => ['Login', 'Logout', 'Create', 'Update', 'Delete', 'Approve', 'Reject'],
-    getEntityTypes: () => ['User', 'Role', 'Cari', 'Depo', 'Kategori', 'Urun', 'Personel', 'Fatura', 'Zimmet', 'Talep']
+    getEntityTypes: () => ['User', 'Role', 'Cari', 'Depo', 'Kategori', 'MalzemeKalemi', 'Personel', 'Fatura', 'Zimmet', 'Talep']
 };
-

@@ -185,16 +185,18 @@ a:hover {
 
 .sidebar.collapsed .nav-section-title,
 .sidebar.collapsed .nav-item span,
-.sidebar.collapsed .nav-item svg:last-child,
+.sidebar.collapsed .nav-item-extras,
 .sidebar.collapsed .badge {
   display: none;
 }
 
-
-
 .sidebar.collapsed .nav-item {
   justify-content: center;
-  padding: var(--spacing-md) 0;
+  padding: 0;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto var(--spacing-xs) auto;
+  border-radius: var(--radius-md);
 }
 
 .sidebar.collapsed .nav-item svg {

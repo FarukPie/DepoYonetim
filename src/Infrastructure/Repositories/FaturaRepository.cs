@@ -16,6 +16,7 @@ public class FaturaRepository : EfRepository<Fatura>, IFaturaRepository
         return await _context.Faturalar
             .Include(f => f.Cari)
             .Include(f => f.Kalemler)
+                .ThenInclude(k => k.MalzemeKalemi)
             .ToListAsync();
     }
 
@@ -24,6 +25,7 @@ public class FaturaRepository : EfRepository<Fatura>, IFaturaRepository
         return await _context.Faturalar
             .Include(f => f.Cari)
             .Include(f => f.Kalemler)
+                .ThenInclude(k => k.MalzemeKalemi)
             .FirstOrDefaultAsync(f => f.Id == id);
     }
 

@@ -8,19 +8,22 @@ namespace DepoYonetim.Application.Services;
 public class BolumService : IBolumService
 {
     private readonly IBolumRepository _bolumRepository;
+    private readonly IZimmetRepository _zimmetRepository;
     private readonly ISystemLogService _logService;
     private readonly ICurrentUserService _currentUserService;
 
     public BolumService(
         IBolumRepository bolumRepository,
+        IZimmetRepository zimmetRepository,
         ISystemLogService logService,
         ICurrentUserService currentUserService)
     {
         _bolumRepository = bolumRepository;
+        _zimmetRepository = zimmetRepository;
         _logService = logService;
         _currentUserService = currentUserService;
     }
-    
+
     private int? CurrentUserId => _currentUserService.UserId;
     private string CurrentUserName => _currentUserService.UserName;
 
@@ -32,8 +35,7 @@ public class BolumService : IBolumService
             b.Kod,
             b.Tip.ToString(), // Enum to String
             b.UstBolumId,
-            new List<BolumDto>(), // SubLocations will be populated in GetTree logic or if recursive mapping needed
-            b.Aciklama
+            new List<BolumDto>() // SubLocations will be populated in GetTree logic or if recursive mapping needed
         );
     }
 
@@ -61,8 +63,7 @@ public class BolumService : IBolumService
                 b.Kod,
                 b.Tip.ToString(),
                 b.UstBolumId,
-                BuildTree(b.Id),
-                b.Aciklama
+                BuildTree(b.Id)
             )).ToList();
         }
 
@@ -88,7 +89,7 @@ public class BolumService : IBolumService
         {
             Ad = dto.Ad,
             Kod = dto.Kod,
-            Aciklama = dto.Aciklama,
+
             UstBolumId = dto.UstBolumId,
             Tip = tipEnum
         };
@@ -112,7 +113,7 @@ public class BolumService : IBolumService
 
         entity.Ad = dto.Ad;
         entity.Kod = dto.Kod;
-        entity.Aciklama = dto.Aciklama;
+
         entity.UstBolumId = dto.UstBolumId;
         
         if (Enum.TryParse<BolumTip>(dto.Tip, out var tipEnum))
@@ -141,6 +142,20 @@ public class BolumService : IBolumService
         var entity = await _bolumRepository.GetByIdAsync(id);
         if (entity != null)
         {
+            // Check for sub-locations
+            var subLocations = await _bolumRepository.FindAsync(x => x.UstBolumId == id);
+            if (subLocations.Any())
+            {
+                 throw new DepoYonetim.Core.Exceptions.BusinessException($"Bu bölüme bağlı {subLocations.Count()} alt bölüm bulunmaktadır. Önce alt bölümleri siliniz veya taşıyınız.");
+            }
+
+            // Check for Zimmet
+            var zimmetler = await _zimmetRepository.GetPagedAsync(1, 1, z => z.BolumId == id);
+            if (zimmetler.TotalCount > 0)
+            {
+                 throw new DepoYonetim.Core.Exceptions.BusinessException($"Bu bölümde {zimmetler.TotalCount} adet zimmetli eşya bulunmaktadır. Bölüm silinemez.");
+            }
+
             var entityName = entity.Ad; // Store before delete
             await _bolumRepository.DeleteAsync(id);
             

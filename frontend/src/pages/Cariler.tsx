@@ -4,121 +4,94 @@ import { cariService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Cari } from '../types';
 import { DataTable, Column } from '../components/shared/DataTable';
-import { getIller, getIlceler, getVergiDaireleri } from '../data/turkiyeData';
+import ConfirmDialog from '../components/ConfirmDialog';
+import CariModal from '../components/shared/CariModal';
 
 export default function Cariler() {
     const { hasEntityPermission } = useAuth();
     const [cariler, setCariler] = useState<Cari[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
-    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editingCari, setEditingCari] = useState<Cari | null>(null);
     const [viewingCari, setViewingCari] = useState<Cari | null>(null);
     const [showViewModal, setShowViewModal] = useState(false);
-    const [formData, setFormData] = useState({
-        firmaAdi: '', tip: 'Tedarikci', ticaretSicilNo: '', vergiNo: '', vergiDairesi: '',
-        adres: '', il: '', ilce: '', telefon: '', fax: '',
-        email: '', webSitesi: '', yetkiliKisi: '', yetkiliTelefon: '',
-        bankaAdi: '', ibanNo: ''
-    });
+
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteId, setDeleteId] = useState<number | null>(null);
+
+    // Pagination State
+    const [isLoading, setIsLoading] = useState(false);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [totalCount, setTotalCount] = useState(0);
 
     const canAdd = hasEntityPermission('cari', 'add');
     const canEdit = hasEntityPermission('cari', 'edit');
     const canDelete = hasEntityPermission('cari', 'delete');
 
     useEffect(() => {
-        loadCariler();
-    }, []);
+        loadData(page, pageSize, searchTerm);
+    }, [page, pageSize]);
 
-    const loadCariler = async () => {
+    const loadData = async (currentPage: number, currentPageSize: number, search: string) => {
+        setIsLoading(true);
         try {
-            const data = await cariService.getAll();
-            setCariler(data);
+            const result = await cariService.getPaged(currentPage, currentPageSize, search);
+            setCariler(result.items);
+            setTotalCount(result.totalCount);
         } catch (error) {
             console.error('Veri yükleme hatası:', error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    // Filter data client-side with useMemo to prevent re-renders
-    const filteredCariler = useMemo(() => {
-        if (!searchTerm) return cariler;
-        const term = searchTerm.toLowerCase();
-        return cariler.filter((c: Cari) =>
-            c.firmaAdi.toLowerCase().includes(term)
-        );
-    }, [cariler, searchTerm]);
+    const handlePageChange = (newPage: number, newPageSize: number) => {
+        setPage(newPage);
+        setPageSize(newPageSize);
+    };
 
-    // Stable data for DataTable - only update when modal is closed to prevent flickering
-    const [stableTableData, setStableTableData] = useState<Cari[]>([]);
-    useEffect(() => {
-        if (!showModal && !showViewModal) {
-            setStableTableData(filteredCariler);
-        }
-    }, [filteredCariler, showModal, showViewModal]);
+    const handleSearch = (term: string) => {
+        setSearchTerm(term);
+        setPage(1);
+        loadData(1, pageSize, term);
+    };
 
     const handleEdit = (cari: Cari) => {
-        setEditingId(cari.id);
-        setFormData({
-            firmaAdi: cari.firmaAdi,
-            tip: cari.tip,
-            ticaretSicilNo: cari.ticaretSicilNo || '',
-            vergiNo: cari.vergiNo || '',
-            vergiDairesi: cari.vergiDairesi || '',
-            adres: cari.adres || '',
-            il: cari.il || '',
-            ilce: cari.ilce || '',
-            telefon: cari.telefon || '',
-            fax: cari.fax || '',
-            email: cari.email || '',
-            webSitesi: cari.webSitesi || '',
-            yetkiliKisi: cari.yetkiliKisi || '',
-            yetkiliTelefon: cari.yetkiliTelefon || '',
-            bankaAdi: cari.bankaAdi || '',
-            ibanNo: cari.ibanNo || ''
-        });
+        setEditingCari(cari);
         setShowModal(true);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            if (editingId) {
-                await cariService.update(editingId, formData);
-            } else {
-                await cariService.create(formData);
-            }
-            loadCariler();
-            closeModal();
-        } catch (error) {
-            console.error('Kaydetme hatası:', error);
-            alert('Kaydetme sırasında bir hata oluştu.');
-        }
+    const handleAdd = () => {
+        setEditingCari(null);
+        setShowModal(true);
     };
 
-    const closeModal = () => {
+    const handleModalClose = () => {
         setShowModal(false);
-        setEditingId(null);
-        setFormData({
-            firmaAdi: '', tip: 'Tedarikci', ticaretSicilNo: '', vergiNo: '', vergiDairesi: '',
-            adres: '', il: '', ilce: '', telefon: '', fax: '',
-            email: '', webSitesi: '', yetkiliKisi: '', yetkiliTelefon: '',
-            bankaAdi: '', ibanNo: ''
-        });
+        setEditingCari(null);
     };
 
-    const handleDelete = async (id: number) => {
-        if (confirm('Bu cariyi silmek istediğinize emin misiniz?')) {
-            try {
-                await cariService.delete(id);
-                loadCariler();
-            } catch (error: any) {
-                console.error('Silme hatası:', error);
-                if (error.response?.data?.message) {
-                    alert('Hata: ' + error.response.data.message);
-                } else {
-                    alert('Silme sırasında bir hata oluştu. İlişkili faturalar olabilir.');
-                }
+    const handleDelete = (id: number) => {
+        setDeleteId(id);
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteId) return;
+        try {
+            await cariService.delete(deleteId);
+            loadData(page, pageSize, searchTerm);
+        } catch (error: any) {
+            console.error('Silme hatası:', error);
+            if (error.response?.data?.message) {
+                alert('Hata: ' + error.response.data.message);
+            } else {
+                alert('Silme sırasında bir hata oluştu. İlişkili faturalar olabilir.');
             }
         }
+        setShowDeleteConfirm(false);
+        setDeleteId(null);
     };
 
     const handleRowClick = useCallback((cari: Cari) => {
@@ -141,6 +114,7 @@ export default function Cariler() {
                 </div>
             )
         },
+        { header: 'Hastane Kodu', accessor: 'hastaneKod' as keyof Cari, render: (cari: Cari) => cari.hastaneKod || '-' },
         { header: 'Ticaret Sicil No', accessor: 'ticaretSicilNo' as keyof Cari, render: (cari: Cari) => cari.ticaretSicilNo || '-' },
         { header: 'Vergi No', accessor: 'vergiNo' as keyof Cari, render: (cari: Cari) => cari.vergiNo || '-' },
         { header: 'İl', accessor: 'il' as keyof Cari, render: (cari: Cari) => cari.il || '-' },
@@ -185,140 +159,29 @@ export default function Cariler() {
                 <DataTable
                     title="Cariler"
                     columns={columns}
-                    data={stableTableData}
+                    data={cariler}
                     searchable={true}
-                    onSearch={(term) => setSearchTerm(term)}
+                    onSearch={handleSearch}
                     searchPlaceholder="Cari ara..."
-                    onAdd={canAdd ? () => setShowModal(true) : undefined}
+                    onAdd={canAdd ? handleAdd : undefined}
                     addButtonLabel="Cari Ekle"
                     emptyMessage="Hiç cari bulunamadı."
                     rowClickable={true}
                     onRowClick={handleRowClick}
+                    serverSide={true}
+                    totalCount={totalCount}
+                    paginationParams={{ pageNumber: page, pageSize }}
+                    onPageChange={handlePageChange}
+                    isLoading={isLoading}
                 />
             </div>
 
-            {/* Modal */}
-            {showModal && (
-                <div className="modal-overlay" onClick={closeModal}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
-                        <div className="modal-header">
-                            <h2 style={{ fontSize: '1.25rem' }}>{editingId ? 'Cari Düzenle' : 'Cari Ekle'}</h2>
-                            <button className="modal-close" onClick={closeModal}><X size={20} /></button>
-                        </div>
-                        <form onSubmit={handleSubmit}>
-                            <div className="modal-body">
-                                <div className="grid-3" style={{ gap: 'var(--spacing-md)' }}>
-                                    <div className="form-group">
-                                        <label className="form-label">Firma Adı</label>
-                                        <input type="text" className="form-input" required value={formData.firmaAdi}
-                                            placeholder="Firma Adı"
-                                            onChange={(e) => setFormData({ ...formData, firmaAdi: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Ticaret Sicil No</label>
-                                        <input type="text" className="form-input" value={formData.ticaretSicilNo}
-                                            placeholder="Ticaret Sicil No"
-                                            onChange={(e) => setFormData({ ...formData, ticaretSicilNo: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Vergi No</label>
-                                        <input type="text" className="form-input" value={formData.vergiNo}
-                                            placeholder="Vergi No"
-                                            onChange={(e) => setFormData({ ...formData, vergiNo: e.target.value })} />
-                                    </div>
-                                </div>
-
-                                <div className="grid-3" style={{ gap: 'var(--spacing-md)' }}>
-                                    <div className="form-group">
-                                        <label className="form-label">İl</label>
-                                        <select className="form-select" value={formData.il}
-                                            onChange={(e) => setFormData({ ...formData, il: e.target.value, ilce: '', vergiDairesi: '' })}>
-                                            <option value="">İl Seçiniz</option>
-                                            {getIller().map((il) => (
-                                                <option key={il} value={il}>{il}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">İlçe</label>
-                                        <select className="form-select" value={formData.ilce}
-                                            onChange={(e) => setFormData({ ...formData, ilce: e.target.value })}
-                                            disabled={!formData.il}>
-                                            <option value="">İlçe Seçiniz</option>
-                                            {formData.il && getIlceler(formData.il).map((ilce) => (
-                                                <option key={ilce} value={ilce}>{ilce}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Vergi Dairesi</label>
-                                        <select className="form-select" value={formData.vergiDairesi}
-                                            onChange={(e) => setFormData({ ...formData, vergiDairesi: e.target.value })}>
-                                            <option value="">Vergi Dairesi Seçiniz</option>
-                                            {formData.il && getVergiDaireleri(formData.il).map((vd) => (
-                                                <option key={vd} value={vd}>{vd}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">Adres</label>
-                                    <input type="text" className="form-input" value={formData.adres}
-                                        placeholder="Adres"
-                                        onChange={(e) => setFormData({ ...formData, adres: e.target.value })} />
-                                </div>
-
-                                <div className="grid-3" style={{ gap: 'var(--spacing-md)' }}>
-                                    <div className="form-group">
-                                        <label className="form-label">Telefon</label>
-                                        <input type="text" className="form-input" value={formData.telefon}
-                                            placeholder="Telefon"
-                                            onChange={(e) => setFormData({ ...formData, telefon: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">E-posta</label>
-                                        <input type="email" className="form-input" value={formData.email}
-                                            placeholder="E-posta"
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Yetkili Kişi</label>
-                                        <input type="text" className="form-input" value={formData.yetkiliKisi}
-                                            placeholder="Yetkili Kişi"
-                                            onChange={(e) => setFormData({ ...formData, yetkiliKisi: e.target.value })} />
-                                    </div>
-                                </div>
-
-                                <div className="grid-3" style={{ gap: 'var(--spacing-md)' }}>
-                                    <div className="form-group">
-                                        <label className="form-label">Yetkili Telefon</label>
-                                        <input type="text" className="form-input" value={formData.yetkiliTelefon}
-                                            placeholder="Yetkili Telefon"
-                                            onChange={(e) => setFormData({ ...formData, yetkiliTelefon: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Banka Adı</label>
-                                        <input type="text" className="form-input" value={formData.bankaAdi}
-                                            placeholder="Banka Adı"
-                                            onChange={(e) => setFormData({ ...formData, bankaAdi: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">IBAN No</label>
-                                        <input type="text" className="form-input" value={formData.ibanNo}
-                                            placeholder="IBAN No"
-                                            onChange={(e) => setFormData({ ...formData, ibanNo: e.target.value })} />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={closeModal}>İptal</button>
-                                <button type="submit" className="btn btn-primary">{editingId ? 'Güncelle' : 'Kaydet'}</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            <CariModal
+                isOpen={showModal}
+                onClose={handleModalClose}
+                onSuccess={() => loadData(page, pageSize, searchTerm)}
+                editingCari={editingCari}
+            />
 
             {/* View Modal */}
             {showViewModal && viewingCari && (
@@ -338,6 +201,10 @@ export default function Cariler() {
                                         <span className={`badge ${viewingCari.tip === 'Tedarikci' ? 'badge-info' : 'badge-success'}`}>
                                             {viewingCari.tip === 'Tedarikci' ? 'Tedarikçi' : 'Müşteri'}
                                         </span>
+                                    </div>
+                                    <div style={{ marginBottom: 'var(--spacing-md)' }}>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Hastane Kodu</div>
+                                        <div style={{ color: 'var(--text-primary)' }}>{viewingCari.hastaneKod || '-'}</div>
                                     </div>
                                     <div style={{ marginBottom: 'var(--spacing-md)' }}>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Vergi No</div>
@@ -379,14 +246,6 @@ export default function Cariler() {
                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>E-posta</div>
                                         <div style={{ color: 'var(--text-primary)' }}>{viewingCari.email || '-'}</div>
                                     </div>
-                                    <div style={{ marginBottom: 'var(--spacing-md)' }}>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Banka Adı</div>
-                                        <div style={{ color: 'var(--text-primary)' }}>{viewingCari.bankaAdi || '-'}</div>
-                                    </div>
-                                    <div style={{ marginBottom: 'var(--spacing-md)' }}>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>IBAN No</div>
-                                        <div style={{ color: 'var(--text-primary)' }}>{viewingCari.ibanNo || '-'}</div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -401,6 +260,16 @@ export default function Cariler() {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                title="Cari Silme"
+                message="Bu cariyi silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+                onConfirm={confirmDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+                confirmText="Sil"
+                variant="danger"
+            />
         </>
     );
 }

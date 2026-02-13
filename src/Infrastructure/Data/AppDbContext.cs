@@ -9,8 +9,8 @@ public class AppDbContext : DbContext
     {
     }
 
-    public DbSet<Depo> Depolar { get; set; }
-    public DbSet<Urun> Urunler { get; set; }
+
+    public DbSet<MalzemeKalemi> MalzemeKalemleri { get; set; }
     public DbSet<Kategori> Kategoriler { get; set; }
     public DbSet<Personel> Personeller { get; set; }
     public DbSet<Cari> Cariler { get; set; }
@@ -28,5 +28,10 @@ public class AppDbContext : DbContext
         
         // Ensure relationships are correctly configured if needed
         // For now, adhering to conventions
+
+        modelBuilder.Entity<Kategori>()
+            .HasMany(k => k.Malzemeler)
+            .WithOne(m => m.Kategori)
+            .HasForeignKey(m => m.KategoriId);
     }
 }

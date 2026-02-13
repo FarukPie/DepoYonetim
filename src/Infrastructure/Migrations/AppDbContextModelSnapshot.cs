@@ -25,9 +25,6 @@ namespace DepoYonetim.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<string>("Aciklama")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("Ad")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -67,26 +64,17 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Property<string>("Adres")
                         .HasColumnType("longtext");
 
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("BankaAdi")
-                        .HasColumnType("longtext");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
                         .HasColumnType("longtext");
 
-                    b.Property<string>("Fax")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("FirmaAdi")
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<string>("IbanNo")
+                    b.Property<string>("HastaneKod")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Il")
@@ -116,9 +104,6 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Property<string>("VergiNo")
                         .HasColumnType("longtext");
 
-                    b.Property<string>("WebSitesi")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("YetkiliKisi")
                         .HasColumnType("longtext");
 
@@ -130,41 +115,6 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.ToTable("Cariler");
                 });
 
-            modelBuilder.Entity("DepoYonetim.Core.Entities.Depo", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<string>("Aciklama")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int?>("SorumluPersonelId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SorumluPersonelId");
-
-                    b.ToTable("Depolar");
-                });
-
             modelBuilder.Entity("DepoYonetim.Core.Entities.Fatura", b =>
                 {
                     b.Property<int>("Id")
@@ -173,9 +123,6 @@ namespace DepoYonetim.Infrastructure.Migrations
 
                     b.Property<string>("Aciklama")
                         .HasColumnType("longtext");
-
-                    b.Property<decimal>("AraToplam")
-                        .HasColumnType("decimal(65,30)");
 
                     b.Property<int>("CariId")
                         .HasColumnType("int");
@@ -190,17 +137,8 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Property<DateTime>("FaturaTarihi")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<decimal>("GenelToplam")
-                        .HasColumnType("decimal(65,30)");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
-
-                    b.Property<decimal>("ToplamIndirim")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<decimal>("ToplamKdv")
-                        .HasColumnType("decimal(65,30)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -217,6 +155,9 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    b.Property<string>("Barkod")
+                        .HasColumnType("longtext");
 
                     b.Property<decimal>("BirimFiyat")
                         .HasColumnType("decimal(65,30)");
@@ -236,8 +177,24 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Property<decimal>("KdvOrani")
                         .HasColumnType("decimal(65,30)");
 
+                    b.Property<string>("MalzemeAdi")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("MalzemeKalemiId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Marka")
+                        .HasColumnType("longtext");
+
                     b.Property<decimal>("Miktar")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Model")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("SeriNumarasi")
+                        .HasColumnType("longtext");
 
                     b.Property<decimal>("Toplam")
                         .HasColumnType("decimal(65,30)");
@@ -245,18 +202,14 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("UrunAdi")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int?>("UrunId")
-                        .HasColumnType("int");
+                    b.Property<bool>("ZimmetDurum")
+                        .HasColumnType("tinyint(1)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("FaturaId");
 
-                    b.HasIndex("UrunId");
+                    b.HasIndex("MalzemeKalemiId");
 
                     b.ToTable("FaturaKalemi");
                 });
@@ -291,6 +244,57 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.HasIndex("UstKategoriId");
 
                     b.ToTable("Kategoriler");
+                });
+
+            modelBuilder.Entity("DepoYonetim.Core.Entities.MalzemeKalemi", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("Aciklama")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Ad")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Birim")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DmbNo")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("EkParcaVar")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("KategoriId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ParcaAd")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Rutin")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KategoriId");
+
+                    b.ToTable("MalzemeKalemleri");
                 });
 
             modelBuilder.Entity("DepoYonetim.Core.Entities.Personel", b =>
@@ -488,76 +492,6 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.ToTable("Talepler");
                 });
 
-            modelBuilder.Entity("DepoYonetim.Core.Entities.Urun", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<string>("Ad")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Barkod")
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("Birim")
-                        .HasColumnType("int");
-
-                    b.Property<int>("BozuldugundaBakimTipi")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int?>("DepoId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Durum")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("EkParcaVar")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("GarantiSuresiAy")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("KategoriId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("KdvOrani")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<decimal>("Maliyet")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<string>("Marka")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Model")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("SeriNumarasi")
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("StokMiktari")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DepoId");
-
-                    b.HasIndex("KategoriId");
-
-                    b.ToTable("Urunler");
-                });
-
             modelBuilder.Entity("DepoYonetim.Core.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -618,20 +552,23 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Property<int>("Durum")
                         .HasColumnType("int");
 
+                    b.Property<int>("FaturaKalemiId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("IadeTarihi")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<int?>("MalzemeKalemiId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("PersonelId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<int>("UrunId")
-                        .HasColumnType("int");
 
                     b.Property<DateTime>("ZimmetTarihi")
                         .HasColumnType("datetime(6)");
@@ -640,9 +577,11 @@ namespace DepoYonetim.Infrastructure.Migrations
 
                     b.HasIndex("BolumId");
 
-                    b.HasIndex("PersonelId");
+                    b.HasIndex("FaturaKalemiId");
 
-                    b.HasIndex("UrunId");
+                    b.HasIndex("MalzemeKalemiId");
+
+                    b.HasIndex("PersonelId");
 
                     b.ToTable("Zimmetler");
                 });
@@ -654,15 +593,6 @@ namespace DepoYonetim.Infrastructure.Migrations
                         .HasForeignKey("UstBolumId");
 
                     b.Navigation("UstBolum");
-                });
-
-            modelBuilder.Entity("DepoYonetim.Core.Entities.Depo", b =>
-                {
-                    b.HasOne("DepoYonetim.Core.Entities.Personel", "SorumluPersonel")
-                        .WithMany("SorumluDepoları")
-                        .HasForeignKey("SorumluPersonelId");
-
-                    b.Navigation("SorumluPersonel");
                 });
 
             modelBuilder.Entity("DepoYonetim.Core.Entities.Fatura", b =>
@@ -684,13 +614,13 @@ namespace DepoYonetim.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DepoYonetim.Core.Entities.Urun", "Urun")
+                    b.HasOne("DepoYonetim.Core.Entities.MalzemeKalemi", "MalzemeKalemi")
                         .WithMany("FaturaKalemleri")
-                        .HasForeignKey("UrunId");
+                        .HasForeignKey("MalzemeKalemiId");
 
                     b.Navigation("Fatura");
 
-                    b.Navigation("Urun");
+                    b.Navigation("MalzemeKalemi");
                 });
 
             modelBuilder.Entity("DepoYonetim.Core.Entities.Kategori", b =>
@@ -702,19 +632,11 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Navigation("UstKategori");
                 });
 
-            modelBuilder.Entity("DepoYonetim.Core.Entities.Urun", b =>
+            modelBuilder.Entity("DepoYonetim.Core.Entities.MalzemeKalemi", b =>
                 {
-                    b.HasOne("DepoYonetim.Core.Entities.Depo", "Depo")
-                        .WithMany("Urunler")
-                        .HasForeignKey("DepoId");
-
                     b.HasOne("DepoYonetim.Core.Entities.Kategori", "Kategori")
-                        .WithMany("Urunler")
-                        .HasForeignKey("KategoriId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Depo");
+                        .WithMany("Malzemeler")
+                        .HasForeignKey("KategoriId");
 
                     b.Navigation("Kategori");
                 });
@@ -725,21 +647,25 @@ namespace DepoYonetim.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("BolumId");
 
+                    b.HasOne("DepoYonetim.Core.Entities.FaturaKalemi", "FaturaKalemi")
+                        .WithMany()
+                        .HasForeignKey("FaturaKalemiId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DepoYonetim.Core.Entities.MalzemeKalemi", null)
+                        .WithMany("Zimmetler")
+                        .HasForeignKey("MalzemeKalemiId");
+
                     b.HasOne("DepoYonetim.Core.Entities.Personel", "Personel")
                         .WithMany("Zimmetler")
                         .HasForeignKey("PersonelId");
 
-                    b.HasOne("DepoYonetim.Core.Entities.Urun", "Urun")
-                        .WithMany("Zimmetler")
-                        .HasForeignKey("UrunId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Bolum");
 
-                    b.Navigation("Personel");
+                    b.Navigation("FaturaKalemi");
 
-                    b.Navigation("Urun");
+                    b.Navigation("Personel");
                 });
 
             modelBuilder.Entity("DepoYonetim.Core.Entities.Bolum", b =>
@@ -752,11 +678,6 @@ namespace DepoYonetim.Infrastructure.Migrations
                     b.Navigation("Faturalar");
                 });
 
-            modelBuilder.Entity("DepoYonetim.Core.Entities.Depo", b =>
-                {
-                    b.Navigation("Urunler");
-                });
-
             modelBuilder.Entity("DepoYonetim.Core.Entities.Fatura", b =>
                 {
                     b.Navigation("Kalemler");
@@ -766,20 +687,18 @@ namespace DepoYonetim.Infrastructure.Migrations
                 {
                     b.Navigation("AltKategoriler");
 
-                    b.Navigation("Urunler");
+                    b.Navigation("Malzemeler");
                 });
 
-            modelBuilder.Entity("DepoYonetim.Core.Entities.Personel", b =>
+            modelBuilder.Entity("DepoYonetim.Core.Entities.MalzemeKalemi", b =>
                 {
-                    b.Navigation("SorumluDepoları");
+                    b.Navigation("FaturaKalemleri");
 
                     b.Navigation("Zimmetler");
                 });
 
-            modelBuilder.Entity("DepoYonetim.Core.Entities.Urun", b =>
+            modelBuilder.Entity("DepoYonetim.Core.Entities.Personel", b =>
                 {
-                    b.Navigation("FaturaKalemleri");
-
                     b.Navigation("Zimmetler");
                 });
 #pragma warning restore 612, 618

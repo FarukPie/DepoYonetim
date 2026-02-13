@@ -13,7 +13,7 @@ public class Personel : BaseEntity
     public bool Aktif { get; set; } = true;
 
     // Navigation Properties
-    public ICollection<Depo> SorumluDepoları { get; set; } = new List<Depo>();
+
     public ICollection<Zimmet> Zimmetler { get; set; } = new List<Zimmet>();
 
     public string TamAd => $"{Ad} {Soyad}";

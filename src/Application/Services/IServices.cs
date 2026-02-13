@@ -2,29 +2,23 @@ using DepoYonetim.Application.DTOs;
 
 namespace DepoYonetim.Application.Services;
 
-public interface IDepoService
-{
-    Task<IEnumerable<DepoDto>> GetAllAsync();
-    Task<DepoDto?> GetByIdAsync(int id);
-    Task<DepoDto> CreateAsync(DepoCreateDto dto);
-    Task UpdateAsync(int id, DepoUpdateDto dto);
-    Task DeleteAsync(int id);
-}
 
-public interface IUrunService
+
+public interface IMalzemeKalemiService
 {
-    Task<IEnumerable<UrunDto>> GetAllAsync();
-    Task<IEnumerable<UrunDto>> GetByDepoIdAsync(int depoId);
-    Task<IEnumerable<UrunDto>> SearchAsync(string searchTerm);
-    Task<UrunDto?> GetByIdAsync(int id);
-    Task<UrunDto> CreateAsync(UrunCreateDto dto);
-    Task UpdateAsync(int id, UrunCreateDto dto);
+    Task<IEnumerable<MalzemeKalemiDto>> GetAllAsync();
+    Task<PagedResultDto<MalzemeKalemiDto>> GetPagedAsync(PaginationRequest request);
+    Task<IEnumerable<MalzemeKalemiDto>> SearchAsync(string searchTerm);
+    Task<MalzemeKalemiDto?> GetByIdAsync(int id);
+    Task<MalzemeKalemiDto> CreateAsync(MalzemeKalemiCreateDto dto);
+    Task UpdateAsync(int id, MalzemeKalemiCreateDto dto);
     Task DeleteAsync(int id);
 }
 
 public interface IKategoriService
 {
     Task<IEnumerable<KategoriDto>> GetAllAsync();
+    Task<PagedResultDto<KategoriDto>> GetPagedAsync(PaginationRequest request);
     Task<IEnumerable<KategoriDto>> GetAnaKategorilerAsync();
     Task<IEnumerable<KategoriDto>> GetAltKategorilerAsync(int ustKategoriId);
     Task<KategoriDto?> GetByIdAsync(int id);
@@ -37,6 +31,7 @@ public interface IKategoriService
 public interface IPersonelService
 {
     Task<IEnumerable<PersonelDto>> GetAllAsync();
+    Task<PagedResultDto<PersonelDto>> GetPagedAsync(PaginationRequest request);
     Task<IEnumerable<PersonelDto>> SearchAsync(string searchTerm);
     Task<PersonelDto?> GetByIdAsync(int id);
     Task<PersonelDto> CreateAsync(PersonelCreateDto dto);
@@ -47,6 +42,7 @@ public interface IPersonelService
 public interface ICariService
 {
     Task<IEnumerable<CariDto>> GetAllAsync();
+    Task<PagedResultDto<CariDto>> GetPagedAsync(PaginationRequest request);
     Task<IEnumerable<CariDto>> SearchAsync(string searchTerm);
     Task<CariDto?> GetByIdAsync(int id);
     Task<CariDto> CreateAsync(CariCreateDto dto);
@@ -57,6 +53,7 @@ public interface ICariService
 public interface IFaturaService
 {
     Task<IEnumerable<FaturaDto>> GetAllAsync();
+    Task<PagedResultDto<FaturaDto>> GetPagedAsync(PaginationRequest request);
     Task<IEnumerable<FaturaDto>> GetByDateRangeAsync(DateTime startDate, DateTime endDate);
     Task<IEnumerable<FaturaDto>> GetByCariIdAsync(int cariId);
     Task<FaturaDto?> GetByIdAsync(int id);
@@ -68,12 +65,14 @@ public interface IFaturaService
 public interface IZimmetService
 {
     Task<IEnumerable<ZimmetDto>> GetAllAsync();
+    Task<PagedResultDto<ZimmetDto>> GetPagedAsync(PaginationRequest request);
     Task<IEnumerable<ZimmetDto>> GetSonZimmetlerAsync(int count);
     Task<ZimmetDto?> GetByIdAsync(int id);
     Task<ZimmetDto> CreateAsync(ZimmetCreateDto dto);
     Task UpdateAsync(int id, ZimmetUpdateDto dto);
     Task DeleteAsync(int id);
     Task IadeEtAsync(int id);
+    Task<IEnumerable<ZimmetDto>> GetByPersonelIdAsync(int personelId);
 }
 
 public interface IDashboardService
@@ -101,4 +100,15 @@ public interface IBolumService
     Task<BolumDto> CreateAsync(BolumCreateDto dto);
     Task UpdateAsync(int id, BolumCreateDto dto);
     Task DeleteAsync(int id);
+}
+
+public interface IUserService
+{
+    Task<IEnumerable<UserDto>> GetAllAsync();
+    Task<UserDto?> GetByIdAsync(int id);
+    Task<UserDto?> GetByUsernameAsync(string username);
+    Task<UserDto> CreateAsync(UserCreateDto dto);
+    Task UpdateAsync(int id, UserUpdateDto dto);
+    Task DeleteAsync(int id);
+    Task<UserDto?> ValidateUserAsync(string username, string password);
 }

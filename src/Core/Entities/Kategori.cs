@@ -7,7 +7,8 @@ public class Kategori : BaseEntity
     public int? UstKategoriId { get; set; }
 
     // Navigation Properties
+    // Navigation Properties
     public Kategori? UstKategori { get; set; }
     public ICollection<Kategori> AltKategoriler { get; set; } = new List<Kategori>();
-    public ICollection<Urun> Urunler { get; set; } = new List<Urun>();
+    public ICollection<MalzemeKalemi> Malzemeler { get; set; } = new List<MalzemeKalemi>();
 }

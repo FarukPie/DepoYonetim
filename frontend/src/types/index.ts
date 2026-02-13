@@ -23,62 +23,34 @@ export interface DepoCreate {
   aktif: boolean;
 }
 
-// ===== URUN =====
-export interface Urun {
+// ===== MALZEME KALEMI (Eski Urun) =====
+export interface MalzemeKalemi {
   id: number;
   ad: string;
-  barkod?: string;
-  kategoriId: number;
-  kategoriAdi?: string;
-  depoId?: number;
-  depoAdi?: string;
+  dmbNo?: string;
   ekParcaVar: boolean;
-  birim: Birim;
-  maliyet: number;
-  kdvOrani: number;
-  garantiSuresiAy: number;
-  bozuldugundaBakimTipi: BakimTipi;
-  stokMiktari: number;
-  durum: UrunDurum;
-  marka?: string;
-  model?: string;
-  seriNumarasi?: string;
+  parcaAd?: string;
+  birim: string; // Enum string values
+  rutin?: string;
+  aciklama?: string;
+  state: number; // 0=Aktif, 1=Bakimda, 2=TamirBekliyor, 3=Hurda, 4=Zimmetli, 5=Pasif
+  kategoriId?: number;
+  kategoriAdi?: string;
 }
 
-export interface UrunCreate {
+export interface MalzemeKalemiCreate {
   ad: string;
-  marka?: string;
-  model?: string;
-  seriNumarasi?: string;
-  barkod?: string;
-  kategoriId: number;
-  depoId?: number;
+  dmbNo?: string;
   ekParcaVar: boolean;
+  parcaAd?: string;
   birim: string;
-  maliyet: number;
-  kdvOrani: number;
-  garantiSuresiAy: number;
-  bozuldugundaBakimTipi: string;
-  stokMiktari: number;
+  rutin?: string;
+  aciklama?: string;
+  state: number;
+  kategoriId?: number;
 }
 
 // ===== KATEGORI =====
-export interface Kategori {
-  id: number;
-  ad: string;
-  aciklama?: string;
-  ustKategoriId?: number;
-  ustKategoriAdi?: string;
-  altKategoriSayisi: number;
-  urunSayisi: number;
-}
-
-export interface KategoriCreate {
-  ad: string;
-  aciklama?: string;
-  ustKategoriId?: number;
-}
-
 export interface Category {
   id: number;
   name: string;
@@ -126,14 +98,10 @@ export interface Cari {
   il?: string;
   ilce?: string;
   telefon?: string;
-  fax?: string;
   email?: string;
-  webSitesi?: string;
   yetkiliKisi?: string;
   yetkiliTelefon?: string;
-  bankaAdi?: string;
-  ibanNo?: string;
-  aktif: boolean;
+  hastaneKod?: string;
 }
 
 export interface CariCreate {
@@ -146,13 +114,10 @@ export interface CariCreate {
   il?: string;
   ilce?: string;
   telefon?: string;
-  fax?: string;
   email?: string;
-  webSitesi?: string;
   yetkiliKisi?: string;
   yetkiliTelefon?: string;
-  bankaAdi?: string;
-  ibanNo?: string;
+  hastaneKod?: string;
 }
 
 // ===== FATURA =====
@@ -172,13 +137,16 @@ export interface Fatura {
 
 export interface FaturaKalemi {
   id: number;
-  urunId?: number;
-  urunAdi: string;
+  malzemeKalemiId?: number;
+  malzemeAdi: string;
   miktar: number;
   birimFiyat: number;
   indirimOrani: number;
   kdvOrani: number;
   toplam: number;
+  zimmetDurum: boolean;
+  seriNumarasi?: string;
+  barkod?: string;
 }
 
 export interface FaturaCreate {
@@ -190,21 +158,27 @@ export interface FaturaCreate {
 }
 
 export interface FaturaKalemiCreate {
-  urunId?: number;
-  urunAdi: string;
+  malzemeKalemiId?: number;
+  malzemeAdi: string;
   miktar: number;
   birimFiyat: number;
   indirimOrani: number;
   kdvOrani: number;
+  zimmetDurum: boolean;
+  seriNumarasi?: string;
+  barkod?: string;
 }
 
 // ===== ZIMMET =====
 export interface Zimmet {
   id: number;
-  urunId: number;
-  urunAdi: string;
+  faturaKalemiId: number;
+  malzemeAdi: string;
+  seriNumarasi?: string;
+  barkod?: string;
   personelId?: number;
   personelAdi?: string;
+  personelDepartman?: string;
   bolumId?: number;
   bolumAdi?: string;
   zimmetTarihi: string;
@@ -214,7 +188,7 @@ export interface Zimmet {
 }
 
 export interface ZimmetCreate {
-  urunId: number;
+  faturaKalemiId: number;
   personelId?: number;
   bolumId?: number;
   zimmetTarihi: string;
@@ -222,7 +196,7 @@ export interface ZimmetCreate {
 }
 
 export interface ZimmetUpdate {
-  urunId: number;
+  faturaKalemiId: number;
   personelId?: number;
   bolumId?: number;
   zimmetTarihi: string;
@@ -238,9 +212,9 @@ export interface Dashboard {
   bakimdakiUrunSayisi: number;
   tamirBekleyenSayisi: number;
   sonZimmetler: Zimmet[];
-  tamirBekleyenUrunler: Urun[];
+  tamirBekleyenMalzemeler: MalzemeKalemi[];
   onaylananTalepler: Talep[];
-  bakimdakiUrunler: Urun[];
+  bakimdakiMalzemeler: MalzemeKalemi[];
 }
 
 // ===== AUTH =====

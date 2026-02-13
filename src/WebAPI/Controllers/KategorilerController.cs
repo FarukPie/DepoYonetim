@@ -21,17 +21,26 @@ public class KategorilerController : ControllerBase
         if (anaKategoriler == true)
         {
             var ana = await _kategoriService.GetAnaKategorilerAsync();
+            if (ana == null || !ana.Any()) return Ok(new List<KategoriDto>());
             return Ok(ana);
         }
         
         if (ustKategoriId.HasValue)
         {
             var alt = await _kategoriService.GetAltKategorilerAsync(ustKategoriId.Value);
+             if (alt == null || !alt.Any()) return Ok(new List<KategoriDto>());
             return Ok(alt);
         }
         
         var kategoriler = await _kategoriService.GetAllAsync();
         return Ok(kategoriler);
+    }
+
+    [HttpGet("paged")]
+    public async Task<ActionResult<PagedResultDto<KategoriDto>>> GetPaged([FromQuery] PaginationRequest request)
+    {
+        var result = await _kategoriService.GetPagedAsync(request);
+        return Ok(result);
     }
 
     [HttpGet("tree")]

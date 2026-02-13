@@ -4,13 +4,14 @@ import Layout from './components/Layout/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Depolar from './pages/Depolar';
-import Urunler from './pages/Urunler';
+import Malzemeler from './pages/Malzemeler';
 import Faturalar from './pages/Faturalar';
 import Cariler from './pages/Cariler';
 import Kategoriler from './pages/Kategoriler';
 import Personeller from './pages/Personeller';
 import Bolumler from './pages/Bolumler';
 import Zimmetler from './pages/Zimmetler';
+import PersonelZimmet from './pages/PersonelZimmet';
 // Admin Pages
 import Kullanicilar from './pages/admin/Kullanicilar';
 import RolYonetimi from './pages/admin/RolYonetimi';
@@ -53,9 +54,9 @@ function AppContent() {
                         <Depolar />
                     </ProtectedRoute>
                 } />
-                <Route path="/urunler" element={
-                    <ProtectedRoute pageKey="urunler">
-                        <Urunler />
+                <Route path="/malzeme-karti" element={
+                    <ProtectedRoute pageKey="malzemeler">
+                        <Malzemeler />
                     </ProtectedRoute>
                 } />
                 <Route path="/faturalar" element={
@@ -81,6 +82,11 @@ function AppContent() {
                 <Route path="/zimmetler" element={
                     <ProtectedRoute pageKey="zimmetler">
                         <Zimmetler />
+                    </ProtectedRoute>
+                } />
+                <Route path="/personel-zimmet" element={
+                    <ProtectedRoute pageKey="zimmetler">
+                        <PersonelZimmet />
                     </ProtectedRoute>
                 } />
                 <Route path="/bolumler" element={

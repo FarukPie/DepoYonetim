@@ -8,18 +8,21 @@ namespace DepoYonetim.Application.Services;
 public class ZimmetService : IZimmetService
 {
     private readonly IZimmetRepository _zimmetRepository;
-    private readonly IUrunRepository _urunRepository;
+    private readonly IMalzemeKalemiRepository _malzemeRepository;
+    private readonly IRepository<FaturaKalemi> _faturaKalemiRepository;
     private readonly ISystemLogService _logService;
     private readonly ICurrentUserService _currentUserService;
 
     public ZimmetService(
         IZimmetRepository zimmetRepository,
-        IUrunRepository urunRepository,
+        IMalzemeKalemiRepository malzemeRepository,
+        IRepository<FaturaKalemi> faturaKalemiRepository,
         ISystemLogService logService,
         ICurrentUserService currentUserService)
     {
         _zimmetRepository = zimmetRepository;
-        _urunRepository = urunRepository;
+        _malzemeRepository = malzemeRepository;
+        _faturaKalemiRepository = faturaKalemiRepository;
         _logService = logService;
         _currentUserService = currentUserService;
     }
@@ -31,10 +34,13 @@ public class ZimmetService : IZimmetService
     {
         return new ZimmetDto(
             z.Id,
-            z.UrunId,
-            z.Urun?.Ad ?? "",
+            z.FaturaKalemiId,
+            z.FaturaKalemi?.MalzemeAdi ?? "",
+            z.FaturaKalemi?.SeriNumarasi,
+            z.FaturaKalemi?.Barkod,
             z.PersonelId,
             z.Personel != null ? $"{z.Personel.Ad} {z.Personel.Soyad}" : null,
+            z.Personel?.Departman,
             z.BolumId,
             z.Bolum?.Ad,
             z.ZimmetTarihi,
@@ -50,6 +56,38 @@ public class ZimmetService : IZimmetService
         return list.Select(MapToDto);
     }
 
+    public async Task<PagedResultDto<ZimmetDto>> GetPagedAsync(PaginationRequest request)
+    {
+        System.Linq.Expressions.Expression<Func<Zimmet, bool>>? predicate = null;
+        
+        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+        {
+            predicate = x => 
+                (x.FaturaKalemi != null && x.FaturaKalemi.MalzemeAdi.Contains(request.SearchTerm)) ||
+                (x.Personel != null && (x.Personel.Ad.Contains(request.SearchTerm) || x.Personel.Soyad.Contains(request.SearchTerm))) ||
+                (x.Bolum != null && x.Bolum.Ad.Contains(request.SearchTerm));
+        }
+
+        var pagedResult = await _zimmetRepository.GetPagedAsync(
+            request.PageNumber,
+            request.PageSize,
+            predicate,
+            q => q.OrderByDescending(x => x.ZimmetTarihi),
+            x => x.FaturaKalemi, 
+            x => x.Personel, 
+            x => x.Bolum
+        );
+
+        var dtos = pagedResult.Items.Select(MapToDto);
+        
+        return new PagedResultDto<ZimmetDto>(
+            dtos, 
+            pagedResult.TotalCount, 
+            pagedResult.PageNumber, 
+            pagedResult.PageSize
+        );
+    }
+
     public async Task<IEnumerable<ZimmetDto>> GetSonZimmetlerAsync(int count)
     {
         var list = await _zimmetRepository.GetSonZimmetlerAsync(count);
@@ -62,10 +100,16 @@ public class ZimmetService : IZimmetService
         return z == null ? null : MapToDto(z);
     }
 
+    public async Task<IEnumerable<ZimmetDto>> GetByPersonelIdAsync(int personelId)
+    {
+        var list = await _zimmetRepository.GetByPersonelIdAsync(personelId);
+        return list.Select(MapToDto);
+    }
+
     public async Task<ZimmetDto> CreateAsync(ZimmetCreateDto dto)
     {
-        // Check for existing active zimmet for this product and close it if exists (Re-assignment)
-        var activeZimmets = await _zimmetRepository.FindAsync(z => z.UrunId == dto.UrunId && z.Durum == ZimmetDurum.Aktif);
+        // Check for existing active zimmet for this fatura kalemi and close it if exists
+        var activeZimmets = await _zimmetRepository.FindAsync(z => z.FaturaKalemiId == dto.FaturaKalemiId && z.Durum == ZimmetDurum.Aktif);
         var activeZimmet = activeZimmets.FirstOrDefault();
         
         if (activeZimmet != null)
@@ -77,13 +121,13 @@ public class ZimmetService : IZimmetService
 
             await _logService.LogAsync(
                  "Update", "Zimmet", activeZimmet.Id, 
-                 $"Ürün yeniden zimmetlendiği için önceki zimmet kapatıldı. ID: {activeZimmet.Id}", 
+                 $"Fatura kalemi yeniden zimmetlendiği için önceki zimmet kapatıldı. ID: {activeZimmet.Id}", 
                  CurrentUserId, CurrentUserName, null);
         }
 
         var entity = new Zimmet
         {
-            UrunId = dto.UrunId,
+            FaturaKalemiId = dto.FaturaKalemiId,
             PersonelId = dto.PersonelId,
             BolumId = dto.BolumId,
             ZimmetTarihi = dto.ZimmetTarihi,
@@ -93,18 +137,12 @@ public class ZimmetService : IZimmetService
 
         var created = await _zimmetRepository.AddAsync(entity);
 
-        // Update Product Status to Aktif (Assigned)
-        var urun = await _urunRepository.GetByIdAsync(dto.UrunId);
-        if (urun != null)
-        {
-            urun.Durum = UrunDurum.Aktif;
-            await _urunRepository.UpdateAsync(urun);
-        }
+        // Fatura kaleminin ZimmetDurum alanını güncelle
+        await UpdateFaturaKalemiZimmetDurumAsync(dto.FaturaKalemiId, true);
         
-        // Retrieve full entity for logging details if possible, but basic info is enough
         await _logService.LogAsync(
              "Create", "Zimmet", created.Id, 
-             $"Zimmet oluşturuldu. Ürün ID: {dto.UrunId}, " +
+             $"Zimmet oluşturuldu. FaturaKalemi ID: {dto.FaturaKalemiId}, " +
              (dto.PersonelId.HasValue ? $"Personel ID: {dto.PersonelId}" : $"Bölüm ID: {dto.BolumId}"), 
              CurrentUserId, CurrentUserName, null);
         
@@ -121,13 +159,8 @@ public class ZimmetService : IZimmetService
 
         await _zimmetRepository.UpdateAsync(z);
 
-        // Update Product Status to Pasif (Unassigned/Available)
-        var urun = await _urunRepository.GetByIdAsync(z.UrunId);
-        if (urun != null)
-        {
-            urun.Durum = UrunDurum.Pasif;
-            await _urunRepository.UpdateAsync(urun);
-        }
+        // İade sonrası fatura kaleminin ZimmetDurum alanını güncelle
+        await UpdateFaturaKalemiZimmetDurumAsync(z.FaturaKalemiId, false);
         
         await _logService.LogAsync(
              "Update", "Zimmet", z.Id, 
@@ -140,13 +173,12 @@ public class ZimmetService : IZimmetService
         var z = await _zimmetRepository.GetByIdAsync(id);
         if (z == null) return;
 
-        z.UrunId = dto.UrunId;
+        z.FaturaKalemiId = dto.FaturaKalemiId;
         z.PersonelId = dto.PersonelId;
         z.BolumId = dto.BolumId;
         z.ZimmetTarihi = dto.ZimmetTarihi;
         z.Aciklama = dto.Aciklama;
         
-        // Parse Durum string to enum
         if (Enum.TryParse<ZimmetDurum>(dto.Durum, out var durum))
         {
             z.Durum = durum;
@@ -165,19 +197,27 @@ public class ZimmetService : IZimmetService
         var z = await _zimmetRepository.GetByIdAsync(id);
         if (z == null) return;
 
+        var faturaKalemiId = z.FaturaKalemiId;
         await _zimmetRepository.DeleteAsync(id);
 
-        // Update Product Status to Pasif (Unassigned/Available)
-        var urun = await _urunRepository.GetByIdAsync(z.UrunId);
-        if (urun != null)
-        {
-            urun.Durum = UrunDurum.Pasif;
-            await _urunRepository.UpdateAsync(urun);
-        }
+        // Silme sonrası fatura kaleminin ZimmetDurum alanını güncelle
+        await UpdateFaturaKalemiZimmetDurumAsync(faturaKalemiId, false);
         
         await _logService.LogAsync(
              "Delete", "Zimmet", id, 
              $"Zimmet silindi. ID: {id}", 
              CurrentUserId, CurrentUserName, null);
+    }
+
+    /// <summary>
+    /// FaturaKalemi.ZimmetDurum alanını günceller.
+    /// </summary>
+    private async Task UpdateFaturaKalemiZimmetDurumAsync(int faturaKalemiId, bool durum)
+    {
+        var faturaKalemi = await _faturaKalemiRepository.GetByIdAsync(faturaKalemiId);
+        if (faturaKalemi == null) return;
+
+        faturaKalemi.ZimmetDurum = durum;
+        await _faturaKalemiRepository.UpdateAsync(faturaKalemi);
     }
 }

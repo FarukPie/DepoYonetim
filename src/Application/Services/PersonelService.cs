@@ -8,15 +8,18 @@ namespace DepoYonetim.Application.Services;
 public class PersonelService : IPersonelService
 {
     private readonly IPersonelRepository _personelRepository;
+    private readonly IZimmetRepository _zimmetRepository;
     private readonly ISystemLogService _logService;
     private readonly ICurrentUserService _currentUserService;
 
     public PersonelService(
         IPersonelRepository personelRepository,
+        IZimmetRepository zimmetRepository,
         ISystemLogService logService,
         ICurrentUserService currentUserService)
     {
         _personelRepository = personelRepository;
+        _zimmetRepository = zimmetRepository;
         _logService = logService;
         _currentUserService = currentUserService;
     }
@@ -53,6 +56,35 @@ public class PersonelService : IPersonelService
         var list = await _personelRepository.GetAllAsync(); 
         return list.Where(p => p.Ad.Contains(searchTerm) || p.Soyad.Contains(searchTerm))
                    .Select(MapToDto);
+    }
+
+    public async Task<PagedResultDto<PersonelDto>> GetPagedAsync(PaginationRequest request)
+    {
+        System.Linq.Expressions.Expression<Func<Personel, bool>>? predicate = null;
+        
+        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+        {
+            predicate = x => x.Ad.Contains(request.SearchTerm) || 
+                             x.Soyad.Contains(request.SearchTerm) ||
+                             (x.TcNo != null && x.TcNo.Contains(request.SearchTerm)) ||
+                             (x.Departman != null && x.Departman.Contains(request.SearchTerm));
+        }
+
+        var pagedResult = await _personelRepository.GetPagedAsync(
+            request.PageNumber,
+            request.PageSize,
+            predicate,
+            q => q.OrderByDescending(x => x.Id) // Id or Ad
+        );
+
+        var dtos = pagedResult.Items.Select(MapToDto);
+        
+        return new PagedResultDto<PersonelDto>(
+            dtos, 
+            pagedResult.TotalCount, 
+            pagedResult.PageNumber, 
+            pagedResult.PageSize
+        );
     }
 
     public async Task<PersonelDto?> GetByIdAsync(int id)
@@ -115,6 +147,12 @@ public class PersonelService : IPersonelService
         var entity = await _personelRepository.GetByIdAsync(id);
         if (entity != null)
         {
+            var zimmetler = await _zimmetRepository.GetByPersonelIdAsync(id);
+            if (zimmetler.Any())
+            {
+                 throw new DepoYonetim.Core.Exceptions.BusinessException($"Bu personele ait {zimmetler.Count()} adet aktif zimmet bulunmaktadır. Personel silinemez.");
+            }
+
             await _personelRepository.DeleteAsync(id);
             
             await _logService.LogAsync(

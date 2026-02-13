@@ -4,7 +4,8 @@ public enum Birim
 {
     Adet,
     Kg,
-    Kutu
+    Kutu,
+    Set
 }
 
 public enum BakimTipi

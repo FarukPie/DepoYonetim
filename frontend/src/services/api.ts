@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Personel, Urun, Depo, Kategori, Location } from '../types';
+import { Personel, MalzemeKalemi, Depo, Category as Kategori, Location, Category } from '../types';
 
 // API Base URL - Backend adresinizle eşleşmeli
 const API_URL = 'http://localhost:5108/api';
@@ -11,10 +11,24 @@ const api = axios.create({
     },
 });
 
+// Pagination Response Interface
+export interface PagedResult<T> {
+    items: T[];
+    totalCount: number;
+    pageNumber: number;
+    pageSize: number;
+}
+
 // Personel Servisi
 export const personelService = {
     getAll: async () => {
         const response = await api.get<Personel[]>('/personeller');
+        return response.data;
+    },
+    getPaged: async (page: number, pageSize: number, search?: string) => {
+        const response = await api.get<PagedResult<Personel>>('/personeller/paged', {
+            params: { pageNumber: page, pageSize, searchTerm: search }
+        });
         return response.data;
     },
     getById: async (id: number) => {
@@ -34,26 +48,32 @@ export const personelService = {
     }
 };
 
-// Ürün Servisi
-export const urunService = {
+// Malzeme Kalemi Servisi
+export const malzemeKalemiService = {
     getAll: async () => {
-        const response = await api.get<Urun[]>('/urunler');
+        const response = await api.get<MalzemeKalemi[]>('/malzemekalemleri');
+        return response.data;
+    },
+    getPaged: async (page: number, pageSize: number, search?: string, kategoriId?: number) => {
+        const response = await api.get<PagedResult<MalzemeKalemi>>('/malzemekalemleri/paged', {
+            params: { pageNumber: page, pageSize, searchTerm: search, kategoriId }
+        });
         return response.data;
     },
     getById: async (id: number) => {
-        const response = await api.get<Urun>(`/urunler/${id}`);
+        const response = await api.get<MalzemeKalemi>(`/malzemekalemleri/${id}`);
         return response.data;
     },
-    create: async (data: Omit<Urun, 'id'>) => {
-        const response = await api.post<Urun>('/urunler', data);
+    create: async (data: Omit<MalzemeKalemi, 'id'>) => {
+        const response = await api.post<MalzemeKalemi>('/malzemekalemleri', data);
         return response.data;
     },
-    update: async (id: number, data: Partial<Urun>) => {
-        const response = await api.put<Urun>(`/urunler/${id}`, data);
+    update: async (id: number, data: Partial<MalzemeKalemi>) => {
+        const response = await api.put<MalzemeKalemi>(`/malzemekalemleri/${id}`, data);
         return response.data;
     },
     delete: async (id: number) => {
-        await api.delete(`/urunler/${id}`);
+        await api.delete(`/malzemekalemleri/${id}`);
     }
 };
 
@@ -82,6 +102,12 @@ export const kategoriService = {
         const response = await api.get<Kategori[]>('/kategoriler');
         return response.data;
     },
+    getPaged: async (page: number, pageSize: number, search?: string) => {
+        const response = await api.get<PagedResult<Kategori>>('/kategoriler/paged', {
+            params: { pageNumber: page, pageSize, searchTerm: search }
+        });
+        return response.data;
+    },
     create: async (data: any) => {
         const response = await api.post<Kategori>('/kategoriler', data);
         return response.data;
@@ -105,6 +131,12 @@ export const cariService = {
         const response = await api.get('/cariler');
         return response.data;
     },
+    getPaged: async (page: number, pageSize: number, search?: string) => {
+        const response = await api.get<PagedResult<any>>('/cariler/paged', { // Using any for CariDto if types not fully generic yet
+            params: { pageNumber: page, pageSize, searchTerm: search }
+        });
+        return response.data;
+    },
     create: async (data: any) => {
         const response = await api.post('/cariler', data);
         return response.data;
@@ -122,6 +154,12 @@ export const cariService = {
 export const faturaService = {
     getAll: async () => {
         const response = await api.get('/faturalar');
+        return response.data;
+    },
+    getPaged: async (page: number, pageSize: number, search?: string) => {
+        const response = await api.get<PagedResult<any>>('/faturalar/paged', {
+            params: { pageNumber: page, pageSize, searchTerm: search }
+        });
         return response.data;
     },
     create: async (data: any) => {
@@ -151,6 +189,12 @@ export const zimmetService = {
         const response = await api.get('/zimmetler');
         return response.data;
     },
+    getPaged: async (page: number, pageSize: number, search?: string, zimmetDurum?: string) => {
+        const response = await api.get<PagedResult<any>>('/zimmetler/paged', {
+            params: { pageNumber: page, pageSize, searchTerm: search, zimmetDurum }
+        });
+        return response.data;
+    },
     create: async (data: any) => {
         const response = await api.post('/zimmetler', data);
         return response.data;
@@ -161,6 +205,10 @@ export const zimmetService = {
     },
     delete: async (id: number) => {
         await api.delete(`/zimmetler/${id}`);
+    },
+    getByPersonelId: async (personelId: number) => {
+        const response = await api.get<any[]>(`/zimmetler/personel/${personelId}`); // Backend returns ZimmetDto list
+        return response.data;
     }
 };
 

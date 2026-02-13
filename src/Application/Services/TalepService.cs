@@ -11,20 +11,20 @@ public class TalepService : ITalepService
 {
     private readonly IRepository<Talep> _talepRepository;
     private readonly IRepository<User> _userRepository;
-    private readonly IRepository<Urun> _urunRepository;
+    private readonly IMalzemeKalemiRepository _malzemeRepository;
     private readonly ISystemLogService _logService;
     private readonly ICurrentUserService _currentUserService;
 
     public TalepService(
         IRepository<Talep> talepRepository,
         IRepository<User> userRepository,
-        IRepository<Urun> urunRepository,
+        IMalzemeKalemiRepository malzemeRepository,
         ISystemLogService logService,
         ICurrentUserService currentUserService)
     {
         _talepRepository = talepRepository;
         _userRepository = userRepository;
-        _urunRepository = urunRepository;
+        _malzemeRepository = malzemeRepository;
         _logService = logService;
         _currentUserService = currentUserService;
     }
@@ -84,7 +84,7 @@ public class TalepService : ITalepService
              $"Yeni talep oluşturuldu: {created.Baslik}", 
              CurrentUserId, CurrentUserName, null);
 
-        // Not: Ürün durumu güncelleme on onay aşamasında yapılır.
+        // Not: Malzeme durumu güncelleme on onay aşamasında yapılır.
 
         return MapToDto(created);
     }
@@ -98,45 +98,54 @@ public class TalepService : ITalepService
         var approver = await _userRepository.GetByIdAsync(onaylayanUserId);
         if (approver == null) 
         {
-             // Fallback for hybrid state (Mock Frontend IDs vs Real Backend IDs)
              var users = await _userRepository.GetAllAsync();
              approver = users.FirstOrDefault();
         }
         if (approver == null) throw new Exception("Onaylayan kullanıcı bulunamadı");
 
-        // Ürün durumu güncelleme
+        // Malzeme durumu güncelleme
         if (talep.TalepTipi == "Bakim" || talep.TalepTipi == "Tamir")
         {
             try 
             {
                 var talepData = JsonSerializer.Deserialize<JsonElement>(talep.TalepData);
-                if (talepData.TryGetProperty("urunId", out var urunIdProp))
+                int malzemeId = 0;
+
+                // Support both urunId (legacy/frontend) and malzemeKalemiId
+                if (talepData.TryGetProperty("malzemeKalemiId", out var idProp))
                 {
-                    int urunId = urunIdProp.GetInt32();
-                    var urun = await _urunRepository.GetByIdAsync(urunId);
-                    if (urun != null)
+                    malzemeId = idProp.GetInt32();
+                } 
+                else if (talepData.TryGetProperty("urunId", out var idPropClassic))
+                {
+                    malzemeId = idPropClassic.GetInt32();
+                }
+
+                if (malzemeId > 0)
+                {
+                    var malzeme = await _malzemeRepository.GetByIdAsync(malzemeId);
+                    if (malzeme != null)
                     {
                         if (talep.TalepTipi == "Tamir")
                         {
-                            urun.Durum = UrunDurum.TamirBekliyor;
+                            malzeme.State = (int)UrunDurum.TamirBekliyor;
                         }
                         else if (talep.TalepTipi == "Bakim")
                         {
-                            urun.Durum = UrunDurum.Bakimda;
+                            malzeme.State = (int)UrunDurum.Bakimda;
                         }
-                        await _urunRepository.UpdateAsync(urun);
+                        await _malzemeRepository.UpdateAsync(malzeme);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ürün durum güncelleme hatası: {ex.Message}");
-                // Log and continue
+                Console.WriteLine($"Malzeme durum güncelleme hatası: {ex.Message}");
             }
         }
 
         talep.Durum = "Onaylandi";
-        talep.OnaylayanUserId = approver.Id; // Use actual ID
+        talep.OnaylayanUserId = approver.Id;
         talep.OnaylayanUserName = approver.FullName;
         talep.OnayTarihi = DateTime.Now;
 
@@ -159,7 +168,6 @@ public class TalepService : ITalepService
         var approver = await _userRepository.GetByIdAsync(onaylayanUserId);
         if (approver == null) 
         {
-             // Fallback
              var users = await _userRepository.GetAllAsync();
              approver = users.FirstOrDefault();
         }

@@ -10,15 +10,18 @@ namespace DepoYonetim.Application.Services;
 public class CariService : ICariService
 {
     private readonly ICariRepository _cariRepository;
+    private readonly IFaturaRepository _faturaRepository;
     private readonly ISystemLogService _logService;
     private readonly ICurrentUserService _currentUserService;
 
     public CariService(
         ICariRepository cariRepository,
+        IFaturaRepository faturaRepository,
         ISystemLogService logService,
         ICurrentUserService currentUserService)
     {
         _cariRepository = cariRepository;
+        _faturaRepository = faturaRepository;
         _logService = logService;
         _currentUserService = currentUserService;
     }
@@ -39,14 +42,10 @@ public class CariService : ICariService
             c.Il,
             c.Ilce,
             c.Telefon,
-            c.Fax,
             c.Email,
-            c.WebSitesi,
             c.YetkiliKisi,
             c.YetkiliTelefon,
-            c.BankaAdi,
-            c.IbanNo,
-            true // Assuming Active
+            c.HastaneKod
         );
     }
 
@@ -60,6 +59,34 @@ public class CariService : ICariService
     {
         var list = await _cariRepository.SearchAsync(searchTerm);
         return list.Select(MapToDto);
+    }
+
+    public async Task<PagedResultDto<CariDto>> GetPagedAsync(PaginationRequest request)
+    {
+        System.Linq.Expressions.Expression<Func<Cari, bool>>? predicate = null;
+        
+        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+        {
+            predicate = x => x.FirmaAdi.Contains(request.SearchTerm) || 
+                             (x.VergiNo != null && x.VergiNo.Contains(request.SearchTerm)) ||
+                             (x.YetkiliKisi != null && x.YetkiliKisi.Contains(request.SearchTerm));
+        }
+
+        var pagedResult = await _cariRepository.GetPagedAsync(
+            request.PageNumber,
+            request.PageSize,
+            predicate,
+            q => q.OrderByDescending(x => x.Id)
+        );
+
+        var dtos = pagedResult.Items.Select(MapToDto);
+        
+        return new PagedResultDto<CariDto>(
+            dtos, 
+            pagedResult.TotalCount, 
+            pagedResult.PageNumber, 
+            pagedResult.PageSize
+        );
     }
 
     public async Task<CariDto?> GetByIdAsync(int id)
@@ -81,13 +108,10 @@ public class CariService : ICariService
             Il = dto.Il,
             Ilce = dto.Ilce,
             Telefon = dto.Telefon,
-            Fax = dto.Fax,
             Email = dto.Email,
-            WebSitesi = dto.WebSitesi,
             YetkiliKisi = dto.YetkiliKisi,
             YetkiliTelefon = dto.YetkiliTelefon,
-            BankaAdi = dto.BankaAdi,
-            IbanNo = dto.IbanNo
+            HastaneKod = dto.HastaneKod
         };
 
         await _cariRepository.AddAsync(entity);
@@ -116,13 +140,10 @@ public class CariService : ICariService
         entity.Il = dto.Il;
         entity.Ilce = dto.Ilce;
         entity.Telefon = dto.Telefon;
-        entity.Fax = dto.Fax;
         entity.Email = dto.Email;
-        entity.WebSitesi = dto.WebSitesi;
         entity.YetkiliKisi = dto.YetkiliKisi;
         entity.YetkiliTelefon = dto.YetkiliTelefon;
-        entity.BankaAdi = dto.BankaAdi;
-        entity.IbanNo = dto.IbanNo;
+        entity.HastaneKod = dto.HastaneKod;
 
         await _cariRepository.UpdateAsync(entity);
 
@@ -137,6 +158,12 @@ public class CariService : ICariService
         var entity = await _cariRepository.GetByIdAsync(id);
         if (entity != null)
         {
+            var faturalar = await _faturaRepository.GetByCariIdAsync(id);
+            if (faturalar.Any())
+            {
+                throw new DepoYonetim.Core.Exceptions.BusinessException($"Bu cariye ait {faturalar.Count()} adet fatura bulunmaktadır. Cari silinemez.");
+            }
+
             await _cariRepository.DeleteAsync(id);
             
             await _logService.LogAsync(

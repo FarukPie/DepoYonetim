@@ -33,7 +33,7 @@ public class KategoriService : IKategoriService
             k.UstKategoriId,
             k.UstKategori?.Ad,
             k.AltKategoriler.Count,
-            k.Urunler.Count
+            k.Malzemeler.Count
         );
     }
 
@@ -41,6 +41,34 @@ public class KategoriService : IKategoriService
     {
         var list = await _kategoriRepository.GetAllAsync();
         return list.Select(MapToDto);
+    }
+
+    public async Task<PagedResultDto<KategoriDto>> GetPagedAsync(PaginationRequest request)
+    {
+        System.Linq.Expressions.Expression<Func<Kategori, bool>>? predicate = null;
+        
+        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+        {
+            predicate = x => x.Ad.Contains(request.SearchTerm);
+        }
+
+        var pagedResult = await _kategoriRepository.GetPagedAsync(
+            request.PageNumber,
+            request.PageSize,
+            predicate,
+            q => q.OrderBy(x => x.Ad), // Categories usually ordered by Name
+            x => x.UstKategori,
+            x => x.AltKategoriler
+        );
+
+        var dtos = pagedResult.Items.Select(MapToDto);
+        
+        return new PagedResultDto<KategoriDto>(
+            dtos, 
+            pagedResult.TotalCount, 
+            pagedResult.PageNumber, 
+            pagedResult.PageSize
+        );
     }
 
     public async Task<IEnumerable<KategoriDto>> GetAnaKategorilerAsync()
@@ -101,9 +129,27 @@ public class KategoriService : IKategoriService
 
     public async Task DeleteAsync(int id)
     {
-        var entity = await _kategoriRepository.GetByIdAsync(id);
+        // Check for dependencies
+        var result = await _kategoriRepository.GetPagedAsync(1, 1, 
+            x => x.Id == id, 
+            null, 
+            x => x.Malzemeler, 
+            x => x.AltKategoriler);
+
+        var entity = result.Items.FirstOrDefault();
+
         if (entity != null)
         {
+            if (entity.Malzemeler.Any())
+            {
+                throw new DepoYonetim.Core.Exceptions.BusinessException($"Bu kategoriye ait {entity.Malzemeler.Count} adet malzeme bulunmaktadır. Kategori silinemez.");
+            }
+
+            if (entity.AltKategoriler.Any())
+            {
+                throw new DepoYonetim.Core.Exceptions.BusinessException($"Bu kategoriye bağlı {entity.AltKategoriler.Count} alt kategori bulunmaktadır. Önce alt kategorileri siliniz veya taşıyınız.");
+            }
+
             await _kategoriRepository.DeleteAsync(id);
             
             await _logService.LogAsync(
@@ -128,7 +174,7 @@ public class KategoriService : IKategoriService
                 c.Ad,
                 c.UstKategoriId,
                 BuildTree(c.Id),
-                c.Urunler?.Count ?? 0
+                c.Malzemeler.Count
             )).ToList();
         }
 

@@ -4,7 +4,7 @@ namespace DepoYonetim.Core.Entities;
 
 public class Zimmet : BaseEntity
 {
-    public int UrunId { get; set; }
+    public int FaturaKalemiId { get; set; }
     public int? PersonelId { get; set; }
     public int? BolumId { get; set; }
     public DateTime ZimmetTarihi { get; set; }
@@ -13,7 +13,7 @@ public class Zimmet : BaseEntity
     public string? Aciklama { get; set; }
 
     // Navigation Properties
-    public Urun? Urun { get; set; }
+    public FaturaKalemi? FaturaKalemi { get; set; }
     public Personel? Personel { get; set; }
     public Bolum? Bolum { get; set; }
 }

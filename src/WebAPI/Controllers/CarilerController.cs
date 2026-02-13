@@ -1,3 +1,4 @@
+using System;
 using DepoYonetim.Application.DTOs;
 using DepoYonetim.Application.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -28,6 +29,13 @@ public class CarilerController : ControllerBase
         return Ok(cariler);
     }
 
+    [HttpGet("paged")]
+    public async Task<ActionResult<PagedResultDto<CariDto>>> GetPaged([FromQuery] PaginationRequest request)
+    {
+        var result = await _cariService.GetPagedAsync(request);
+        return Ok(result);
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<CariDto>> GetById(int id)
     {
@@ -39,8 +47,15 @@ public class CarilerController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<CariDto>> Create([FromBody] CariCreateDto dto)
     {
-        var cari = await _cariService.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = cari.Id }, cari);
+        try
+        {
+            var cari = await _cariService.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetById), new { id = cari.Id }, cari);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = "Cari kaydedilirken hata oluştu: " + ex.Message, details = ex.InnerException?.Message });
+        }
     }
 
     [HttpPut("{id}")]

@@ -1,5 +1,5 @@
+using DepoYonetim.Application.DTOs;
 using DepoYonetim.Application.Services;
-using DepoYonetim.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DepoYonetim.WebAPI.Controllers;
@@ -8,10 +8,14 @@ namespace DepoYonetim.WebAPI.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
+    private readonly IUserService _userService;
+    private readonly IRoleService _roleService;
     private readonly ISystemLogService _logService;
 
-    public AuthController(ISystemLogService logService)
+    public AuthController(IUserService userService, IRoleService roleService, ISystemLogService logService)
     {
+        _userService = userService;
+        _roleService = roleService;
         _logService = logService;
     }
 
@@ -36,25 +40,22 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
     {
-        var user = MockData.Users.FirstOrDefault(u => 
-            u.Username == request.Username && 
-            u.Password == request.Password &&
-            u.IsActive);
+        var user = await _userService.ValidateUserAsync(request.Username, request.Password);
 
         if (user == null)
         {
             return Unauthorized(new LoginResponse(false, "Kullanıcı adı veya şifre hatalı", null, null));
         }
 
-        var role = MockData.Roller.FirstOrDefault(r => r.Id == user.RoleId);
+        var role = await _roleService.GetByIdAsync(user.RoleId);
         if (role == null)
         {
             return Unauthorized(new LoginResponse(false, "Kullanıcı rolü bulunamadı", null, null));
         }
 
-        // Parse permissions from JSON
-        var pagePermissions = System.Text.Json.JsonSerializer.Deserialize<string[]>(role.PagePermissions) ?? Array.Empty<string>();
-        var entityPermissions = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string[]>>(role.EntityPermissions) ?? new Dictionary<string, string[]>();
+        // Permissions are already parsed in RoleDto
+        var pagePermissions = role.PagePermissions ?? Array.Empty<string>();
+        var entityPermissions = role.EntityPermissions ?? new Dictionary<string, string[]>();
 
         // Generate token
         var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
@@ -84,7 +85,7 @@ public class AuthController : ControllerBase
     {
         if (userId.HasValue)
         {
-             var user = MockData.Users.FirstOrDefault(u => u.Id == userId);
+             var user = await _userService.GetByIdAsync(userId.Value);
              if (user != null)
              {
                  await _logService.LogAsync(
@@ -97,27 +98,28 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("me")]
-    public ActionResult GetCurrentUser([FromHeader(Name = "X-User-Id")] int? userId)
+    public async Task<ActionResult> GetCurrentUser([FromHeader(Name = "X-User-Id")] int? userId)
     {
         if (userId == null)
         {
             return Unauthorized(new { Success = false, Message = "Kullanıcı bulunamadı" });
         }
 
-        var user = MockData.Users.FirstOrDefault(u => u.Id == userId && u.IsActive);
-        if (user == null)
+        var user = await _userService.GetByIdAsync(userId.Value);
+        // Check IsActive logic (UserDto has IsActive)
+        if (user == null || !user.IsActive)
         {
             return NotFound(new { Success = false, Message = "Kullanıcı bulunamadı" });
         }
 
-        var role = MockData.Roller.FirstOrDefault(r => r.Id == user.RoleId);
+        var role = await _roleService.GetByIdAsync(user.RoleId);
         if (role == null)
         {
             return NotFound(new { Success = false, Message = "Rol bulunamadı" });
         }
 
-        var pagePermissions = System.Text.Json.JsonSerializer.Deserialize<string[]>(role.PagePermissions) ?? Array.Empty<string>();
-        var entityPermissions = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string[]>>(role.EntityPermissions) ?? new Dictionary<string, string[]>();
+        var pagePermissions = role.PagePermissions ?? Array.Empty<string>();
+        var entityPermissions = role.EntityPermissions ?? new Dictionary<string, string[]>();
 
         return Ok(new UserInfo(
             user.Id,

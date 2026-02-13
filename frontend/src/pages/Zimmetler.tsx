@@ -1,17 +1,18 @@
 import { useEffect, useState, useMemo, Fragment, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ClipboardList, CheckCircle, RotateCcw, Edit, Trash2, X, AlertTriangle, Search, Plus, ChevronDown, ChevronUp } from 'lucide-react';
-import { zimmetService, urunService, personelService, bolumService } from '../services/api';
+import { ClipboardList, CheckCircle, RotateCcw, Edit, Trash2, X, AlertTriangle, Search, Plus, ChevronDown, ChevronUp, Package } from 'lucide-react';
+import { zimmetService, faturaService, personelService, bolumService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Zimmet } from '../types';
+import { Zimmet, FaturaKalemi, Fatura } from '../types';
 import { DataTable, Column } from '../components/shared/DataTable';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function Zimmetler() {
     const [showModal, setShowModal] = useState(false);
+    const [viewingZimmet, setViewingZimmet] = useState<Zimmet | null>(null);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [zimmetler, setZimmetler] = useState<Zimmet[]>([]);
-    const [urunler, setUrunler] = useState<any[]>([]);
+    const [faturaKalemleri, setFaturaKalemleri] = useState<FaturaKalemi[]>([]);
     const [personeller, setPersoneller] = useState<any[]>([]);
     const [locations, setLocations] = useState<any[]>([]); // New: Locations
     const [flatLocations, setFlatLocations] = useState<any[]>([]); // New: Flat Locations
@@ -25,98 +26,104 @@ export default function Zimmetler() {
     const [showProductModal, setShowProductModal] = useState(false);
     const [productSearchTerm, setProductSearchTerm] = useState('');
     const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
-    const [productCategoryFilter, setProductCategoryFilter] = useState('');
-    const [productSerialFilter, setProductSerialFilter] = useState('');
-
-    const [productBarcodeFilter, setProductBarcodeFilter] = useState('');
 
     // New: Show assigned products toggle
     const [showAssigned, setShowAssigned] = useState(false);
 
     // New: Reassignment Confirmation
     const [showReassignConfirm, setShowReassignConfirm] = useState(false);
-    // Removed pendingProducts state
 
     // New: Expanded Product Details Index
     const [expandedProductIndex, setExpandedProductIndex] = useState<number | null>(null);
 
-    // Filter data client-side with useMemo to prevent re-renders
-    const filteredZimmetler = useMemo(() => {
-        return zimmetler.filter(z => {
-            const matchesSearch = z.urunAdi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (z.personelAdi?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                (z.bolumAdi?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-            const matchesDurum = !durumFilter || z.durum === durumFilter;
-            return matchesSearch && matchesDurum;
-        });
-    }, [zimmetler, searchTerm, durumFilter]);
-
-    // Stable data for DataTable - only update when modal is closed to prevent flickering
-    const [stableTableData, setStableTableData] = useState<Zimmet[]>([]);
-    useEffect(() => {
-        if (!showModal && !showProductModal) {
-            setStableTableData(filteredZimmetler);
-        }
-    }, [filteredZimmetler, showModal, showProductModal]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [totalCount, setTotalCount] = useState(0);
+    const [debugError, setDebugError] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
-        targetType: 'Personel' as 'Personel' | 'Bolum', // New: Target Type
+        isPersonelTarget: true,
+        isBolumTarget: false,
         personelId: '',
-        bolumId: '', // New: Bolum ID
+        bolumId: '',
         zimmetTarihi: new Date().toISOString().split('T')[0],
         aciklama: '',
         durum: 'Aktif'
     });
 
-    const [selectedProducts, setSelectedProducts] = useState<any[]>([]); // New: Selected Products for batch add
+    const [selectedProducts, setSelectedProducts] = useState<FaturaKalemi[]>([]); // Selected FaturaKalemi items for batch add
 
     // Confirmation dialog states
     const [showSaveConfirm, setShowSaveConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
-
     const { hasEntityPermission } = useAuth();
     const canAdd = hasEntityPermission('zimmet', 'add');
     const canEdit = hasEntityPermission('zimmet', 'edit');
     const canDelete = hasEntityPermission('zimmet', 'delete');
 
+    // Initial load for lookups
     useEffect(() => {
-        loadData();
+        const loadLookups = async () => {
+            try {
+                const [faturaData, personelData, locationTree] = await Promise.all([
+                    faturaService.getAll(),
+                    personelService.getAll(),
+                    bolumService.getTree()
+                ]);
+
+                // Flatten all fatura kalemleri
+                const allKalemler: FaturaKalemi[] = [];
+                if (Array.isArray(faturaData)) {
+                    faturaData.forEach((fatura: Fatura) => {
+                        if (fatura.kalemler) {
+                            fatura.kalemler.forEach(k => {
+                                allKalemler.push(k);
+                            });
+                        }
+                    });
+                }
+                setFaturaKalemleri(allKalemler);
+                setPersoneller(Array.isArray(personelData) ? personelData : []);
+                setLocations(Array.isArray(locationTree) ? locationTree : []);
+
+                // Flatten locations
+                const flatten = (locs: any[], level = 0): any[] => {
+                    let result: any[] = [];
+                    for (const loc of locs) {
+                        result.push({ ...loc, level });
+                        if (loc.subLocations) {
+                            result = result.concat(flatten(loc.subLocations, level + 1));
+                        }
+                    }
+                    return result;
+                };
+                setFlatLocations(flatten(Array.isArray(locationTree) ? locationTree : []));
+            } catch (error) {
+                console.error('Lookup yükleme hatası:', error);
+            }
+        };
+        loadLookups();
     }, []);
 
-    const loadData = async () => {
+    // Data load for grid
+    useEffect(() => {
+        loadData(page, pageSize, searchTerm, durumFilter);
+    }, [page, pageSize]); // searchTerm and durumFilter managed manually or via specific handlers
+
+    const loadData = async (currentPage: number, currentPageSize: number, search: string, durum: string) => {
+        setIsLoading(true);
         try {
-            console.log('Loading zimmet data from API...');
-            const [zimmetData, urunData, personelData, locationTree] = await Promise.all([
-                zimmetService.getAll(),
-                urunService.getAll(),
-                personelService.getAll(),
-                bolumService.getTree()
-            ]);
-
-            console.log('Data loaded:', { zimmetData, urunData, personelData, locationTree });
-
-            setZimmetler(Array.isArray(zimmetData) ? zimmetData : []);
-            setUrunler(Array.isArray(urunData) ? urunData : []);
-            setPersoneller(Array.isArray(personelData) ? personelData : []);
-            setLocations(Array.isArray(locationTree) ? locationTree : []);
-
-            // Flatten locations
-            const flatten = (locs: any[], level = 0): any[] => {
-                let result: any[] = [];
-                for (const loc of locs) {
-                    result.push({ ...loc, level });
-                    if (loc.subLocations) {
-                        result = result.concat(flatten(loc.subLocations, level + 1));
-                    }
-                }
-                return result;
-            };
-            setFlatLocations(flatten(Array.isArray(locationTree) ? locationTree : []));
-
+            const result = await zimmetService.getPaged(currentPage, currentPageSize, search, durum);
+            setZimmetler(result.items);
+            setTotalCount(result.totalCount);
         } catch (error) {
             console.error('Veri yükleme hatası:', error);
+            setDebugError(error instanceof Error ? error.message : String(error));
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -126,13 +133,13 @@ export default function Zimmetler() {
     // Handle incoming items from Fatura
     useEffect(() => {
         // Only process once per navigation
-        if (location.state?.assignItems && urunler.length > 0 && !processedFaturaItems.current) {
+        if (location.state?.assignItems && faturaKalemleri.length > 0 && !processedFaturaItems.current) {
             const items = location.state.assignItems;
 
-            // Map fatura items to product objects
+            // Map fatura items to FaturaKalemi objects
             const productsToAssign = items.map((item: any) => {
-                const found = urunler.find(u => u.id === item.urunId);
-                return found || { id: item.urunId, ad: item.urunAdi };
+                const found = faturaKalemleri.find(fk => fk.id === item.faturaKalemiId);
+                return found || { id: item.faturaKalemiId, malzemeAdi: item.malzemeAdi } as FaturaKalemi;
             });
 
             // Filter out any potential invalid items
@@ -140,7 +147,7 @@ export default function Zimmetler() {
 
             if (validProducts.length > 0) {
                 console.log('Faturadan gelen ürünler:', validProducts);
-                const uniqueProducts = [];
+                const uniqueProducts: FaturaKalemi[] = [];
                 const seenIds = new Set();
 
                 for (const p of validProducts) {
@@ -156,7 +163,8 @@ export default function Zimmetler() {
                 setFormData(prev => ({
                     ...prev,
                     aciklama: 'Faturadan otomatik aktarıldı',
-                    targetType: 'Personel', // Default
+                    isPersonelTarget: true,
+                    isBolumTarget: false,
                     personelId: '',
                     bolumId: '',
                     zimmetTarihi: new Date().toISOString().split('T')[0],
@@ -173,7 +181,7 @@ export default function Zimmetler() {
                 window.history.replaceState({}, document.title);
             }
         }
-    }, [location.state, urunler]);
+    }, [location.state, faturaKalemleri]);
 
     const getDurumBadge = (durum: string) => {
         switch (durum) {
@@ -186,14 +194,14 @@ export default function Zimmetler() {
 
     const handleEdit = (zimmet: Zimmet) => {
         setEditingId(zimmet.id);
-        const urun = urunler.find(u => u.ad === zimmet.urunAdi); // Fallback if UrunId not directly available in Zimmet list object implies it usually is
-        // Actually zimmet object has urunId.
+        const urun = faturaKalemleri.find(fk => fk.id === zimmet.faturaKalemiId);
 
-        let targetType: 'Personel' | 'Bolum' = 'Personel';
-        if (zimmet.bolumId) targetType = 'Bolum';
+        const isPersonel = !!zimmet.personelId;
+        const isBolum = !!zimmet.bolumId;
 
         setFormData({
-            targetType,
+            isPersonelTarget: isPersonel,
+            isBolumTarget: isBolum,
             personelId: zimmet.personelId?.toString() || '',
             bolumId: zimmet.bolumId?.toString() || '',
             zimmetTarihi: zimmet.zimmetTarihi.split('T')[0],
@@ -201,19 +209,8 @@ export default function Zimmetler() {
             durum: zimmet.durum
         });
 
-        // For edit, we act as if only 1 product is selected
         if (urun) {
             setSelectedProducts([urun]);
-        } else {
-            // If we can't find the product object, we might have issues. 
-            // But for Edit, we usually just update metadata, not change the product ID heavily or we might need product details.
-            // Simplification: In Edit mode, we don't support changing the product list easily, or we treat it as single item edit.
-            // The requirement was "Select multiple materials for a single zimmet assignment". 
-            // Usually this implies "Create". "Edit" might remain single.
-            // Let's keep Edit as single item edit for now to avoid complexity unless requested.
-            // But we need to populate selectedProducts to show it in the table.
-            const currentProduct = urunler.find(u => u.id === zimmet.urunId);
-            if (currentProduct) setSelectedProducts([currentProduct]);
         }
 
         setShowModal(true);
@@ -228,7 +225,7 @@ export default function Zimmetler() {
         if (deleteTargetId === null) return;
         try {
             await zimmetService.delete(deleteTargetId);
-            loadData();
+            loadData(page, pageSize, searchTerm, durumFilter);
         } catch (error) {
             console.error('Silme hatası:', error);
             alert('Silme sırasında bir hata oluştu.');
@@ -242,22 +239,27 @@ export default function Zimmetler() {
         e.preventDefault();
 
         if (selectedProducts.length === 0) {
-            alert('Lütfen en az bir ürün seçiniz.');
+            alert('Lütfen en az bir malzeme seçiniz.');
             return;
         }
 
-        if (formData.targetType === 'Personel' && !formData.personelId) {
-            alert('Lütfen personel seçiniz.');
+        if (!formData.isPersonelTarget && !formData.isBolumTarget) {
+            alert('Lütfen en az bir hedef (Personel veya Bölüm) seçiniz.');
             return;
         }
 
-        if (formData.targetType === 'Bolum' && !formData.bolumId) {
-            alert('Lütfen bölüm/oda seçiniz.');
+        if (formData.isPersonelTarget && !formData.personelId) {
+            alert('Personel seçimi yapmadınız.');
             return;
         }
 
-        // Check validation for reassignment
-        const assignedProducts = selectedProducts.filter(p => p.durum === 'Aktif');
+        if (formData.isBolumTarget && !formData.bolumId) {
+            alert('Bölüm/Oda seçimi yapmadınız.');
+            return;
+        }
+
+        // Check validation for reassignment (zimmetDurum = true)
+        const assignedProducts = selectedProducts.filter(p => p.zimmetDurum === true);
         if (assignedProducts.length > 0) {
             setShowReassignConfirm(true);
             return;
@@ -268,18 +270,16 @@ export default function Zimmetler() {
 
     const confirmSave = async () => {
         try {
-            // Loop through selected products and create/update
-            // Note: Update usually is for single item. If editingId is present, we only update that one.
             if (editingId) {
                 // Update Single
                 if (selectedProducts.length !== 1) {
-                    alert("Düzenleme modunda sadece 1 ürün seçili olmalıdır.");
+                    alert("Düzenleme modunda sadece 1 malzeme seçili olmalıdır.");
                     return;
                 }
                 const data = {
-                    urunId: selectedProducts[0].id,
-                    personelId: formData.targetType === 'Personel' ? parseInt(formData.personelId) : undefined,
-                    bolumId: formData.targetType === 'Bolum' ? parseInt(formData.bolumId) : undefined,
+                    faturaKalemiId: selectedProducts[0].id,
+                    personelId: formData.isPersonelTarget ? parseInt(formData.personelId) : undefined,
+                    bolumId: formData.isBolumTarget ? parseInt(formData.bolumId) : undefined,
                     zimmetTarihi: formData.zimmetTarihi,
                     aciklama: formData.aciklama,
                     durum: formData.durum
@@ -289,9 +289,9 @@ export default function Zimmetler() {
                 // Create Multiple
                 for (const product of selectedProducts) {
                     const data = {
-                        urunId: product.id,
-                        personelId: formData.targetType === 'Personel' ? parseInt(formData.personelId) : undefined,
-                        bolumId: formData.targetType === 'Bolum' ? parseInt(formData.bolumId) : undefined,
+                        faturaKalemiId: product.id,
+                        personelId: formData.isPersonelTarget ? parseInt(formData.personelId) : undefined,
+                        bolumId: formData.isBolumTarget ? parseInt(formData.bolumId) : undefined,
                         zimmetTarihi: formData.zimmetTarihi,
                         aciklama: formData.aciklama
                     };
@@ -299,7 +299,7 @@ export default function Zimmetler() {
                 }
             }
 
-            loadData();
+            loadData(page, pageSize, searchTerm, durumFilter);
             closeModal();
         } catch (error) {
             console.error('Kaydetme hatası:', error);
@@ -313,7 +313,8 @@ export default function Zimmetler() {
         setShowModal(false);
         setEditingId(null);
         setFormData({
-            targetType: 'Personel',
+            isPersonelTarget: true,
+            isBolumTarget: false,
             personelId: '',
             bolumId: '',
             zimmetTarihi: new Date().toISOString().split('T')[0],
@@ -324,34 +325,32 @@ export default function Zimmetler() {
         setSelectedProductIds(new Set());
     };
 
-    // --- Product Selection Logic ---
+    // --- Product Selection Logic (FaturaKalemi based) ---
     const activeProducts = useMemo(() => {
-        return urunler.filter(u => {
+        return faturaKalemleri.filter(fk => {
             // Edit mode: always show currently selected product
-            if (editingId && selectedProducts.some(sp => sp.id === u.id)) return true;
+            if (editingId && selectedProducts.some(sp => sp.id === fk.id)) return true;
 
-            // If showAssigned is true, show everything (except maybe Hurda/Kayip/Satildi if those exist, but 'Aktif' means Assigned now)
-            // User requested: "Zimmetli ürünler listelenmesin fakat bir checkbox olsun"
-            // Our Schema: Pasif = Available, Aktif = Assigned.
-            if (showAssigned) {
-                return u.durum === 'Pasif' || u.durum === 'Aktif';
-            }
+            // showAssigned: show all items including zimmetli ones
+            if (showAssigned) return true;
 
-            // Default: Show ONLY Pasif (Available)
-            return u.durum === 'Pasif';
+            // Default: Show ONLY zimmetsiz (zimmetDurum = false)
+            return !fk.zimmetDurum;
         });
-    }, [urunler, editingId, selectedProducts, showAssigned]);
+    }, [faturaKalemleri, editingId, selectedProducts, showAssigned]);
 
     const filteredProducts = useMemo(() => {
-
-        return activeProducts.filter(u => {
-            const matchesSearch = u.ad.toLowerCase().includes(productSearchTerm.toLowerCase());
-            const matchesCategory = !productCategoryFilter || u.kategoriId.toString() === productCategoryFilter;
-            const matchesSerial = !productSerialFilter || (u.seriNumarasi || '').toLowerCase().includes(productSerialFilter.toLowerCase());
-            const matchesBarcode = !productBarcodeFilter || (u.barkod || '').toLowerCase().includes(productBarcodeFilter.toLowerCase());
-            return matchesSearch && matchesCategory && matchesSerial && matchesBarcode;
+        if (!productSearchTerm.trim()) {
+            return [];
+        }
+        return activeProducts.filter(fk => {
+            const searchLower = productSearchTerm.toLowerCase();
+            const matchesName = fk.malzemeAdi.toLowerCase().includes(searchLower);
+            const matchesSeri = fk.seriNumarasi?.toLowerCase().includes(searchLower) || false;
+            const matchesBarkod = fk.barkod?.toLowerCase().includes(searchLower) || false;
+            return matchesName || matchesSeri || matchesBarkod;
         });
-    }, [activeProducts, productSearchTerm, productCategoryFilter, productSerialFilter, productBarcodeFilter]);
+    }, [activeProducts, productSearchTerm]);
 
     const toggleProductSelection = (id: number) => {
         const newSelected = new Set(selectedProductIds);
@@ -364,12 +363,11 @@ export default function Zimmetler() {
     };
 
     const addSelectedProducts = () => {
-        const productsToAdd = urunler.filter(u => selectedProductIds.has(u.id));
+        const productsToAdd = faturaKalemleri.filter(fk => selectedProductIds.has(fk.id));
         finalizeAddProducts(productsToAdd);
     };
 
-    const finalizeAddProducts = (products: any[]) => {
-        // Merge with existing selected products, avoiding duplicates
+    const finalizeAddProducts = (products: FaturaKalemi[]) => {
         const newSelection = [...selectedProducts];
         products.forEach(p => {
             if (!newSelection.find(existing => existing.id === p.id)) {
@@ -379,9 +377,6 @@ export default function Zimmetler() {
         setSelectedProducts(newSelection);
         setShowProductModal(false);
         setProductSearchTerm('');
-        setProductCategoryFilter('');
-        setProductSerialFilter('');
-        setProductBarcodeFilter('');
         setSelectedProductIds(new Set());
         setShowReassignConfirm(false);
     };
@@ -393,40 +388,28 @@ export default function Zimmetler() {
     // Memoize columns to prevent DataTable re-renders
     const columns: Column<Zimmet>[] = useMemo(() => [
         {
-            header: 'Ürün',
+            header: 'Malzeme Adı',
             render: (zimmet: Zimmet) => (
                 <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                    {zimmet.urunAdi}
+                    {zimmet.malzemeAdi}
                 </span>
             )
         },
         {
-            header: 'Zimmet Yeri',
+            header: 'Seri Numarası',
             render: (zimmet: Zimmet) => (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {zimmet.personelAdi ? (
-                        <>
-                            <span title="Personel">👤</span>
-                            <span>{zimmet.personelAdi}</span>
-                        </>
-                    ) : (
-                        <>
-                            <span title="Bölüm/Oda">📍</span>
-                            <span>{zimmet.bolumAdi || '-'}</span>
-                        </>
-                    )}
-                </div>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                    {zimmet.seriNumarasi || '-'}
+                </span>
             )
         },
         {
-            header: 'Zimmet Tarihi',
-            render: (zimmet: Zimmet) => new Date(zimmet.zimmetTarihi).toLocaleDateString('tr-TR')
-        },
-        {
-            header: 'İade Tarihi',
-            render: (zimmet: Zimmet) => zimmet.iadeTarihi
-                ? new Date(zimmet.iadeTarihi).toLocaleDateString('tr-TR')
-                : '-'
+            header: 'Barkod',
+            render: (zimmet: Zimmet) => (
+                <span style={{ color: 'var(--text-secondary)' }}>
+                    {zimmet.barkod || '-'}
+                </span>
+            )
         },
         {
             header: 'Durum',
@@ -437,12 +420,33 @@ export default function Zimmetler() {
             )
         },
         {
-            header: 'Açıklama',
+            header: 'Personel',
             render: (zimmet: Zimmet) => (
-                <span style={{ color: 'var(--text-muted)', maxWidth: '200px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {zimmet.aciklama || '-'}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    {zimmet.personelAdi ? (
+                        <>
+                            <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{zimmet.personelAdi}</span>
+                            {zimmet.personelDepartman && (
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{zimmet.personelDepartman}</span>
+                            )}
+                        </>
+                    ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>-</span>
+                    )}
+                </div>
+            )
+        },
+        {
+            header: 'Bölüm / Oda',
+            render: (zimmet: Zimmet) => (
+                <span style={{ color: 'var(--text-secondary)' }}>
+                    {zimmet.bolumAdi || '-'}
                 </span>
             )
+        },
+        {
+            header: 'Zimmet Tarihi',
+            render: (zimmet: Zimmet) => new Date(zimmet.zimmetTarihi).toLocaleDateString('tr-TR')
         },
         ...((canEdit || canDelete) ? [{
             header: 'İşlemler',
@@ -463,116 +467,108 @@ export default function Zimmetler() {
         }] : [])
     ], [canEdit, canDelete]);
 
+    const handlePageChange = (newPage: number, newPageSize: number) => {
+        setPage(newPage);
+        setPageSize(newPageSize);
+    };
+
+    const handleSearch = (term: string) => {
+        setSearchTerm(term);
+        setPage(1);
+        loadData(1, pageSize, term, durumFilter);
+    };
+
+    const handleDurumChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newDurum = e.target.value;
+        setDurumFilter(newDurum);
+        setPage(1);
+        loadData(1, pageSize, searchTerm, newDurum);
+    };
+
     return (
         <>
             <div className="page-content">
-                {/* Header Title */}
                 <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: 'var(--spacing-lg)', color: 'var(--text-primary)' }}>
                     Zimmetler
                 </h1>
 
-                {/* Stats & Controls Container */}
                 <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'flex-start', marginBottom: 'var(--spacing-lg)', flexWrap: 'wrap' }}>
-
                     {/* Stats Grid */}
-                    <div className="dashboard-grid" style={{
-                        flex: 1,
-                        marginBottom: 0,
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(4, 1fr)', // Force 4 equal columns filling all space
-                        gap: 'var(--spacing-md)'
-                    }}>
+                    <div className="dashboard-grid" style={{ flex: 1, marginBottom: 0, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--spacing-md)' }}>
                         <div className="stat-card">
-                            <div className="stat-card-icon">
-                                <ClipboardList size={24} style={{ color: 'var(--text-muted)' }} />
-                            </div>
+                            <div className="stat-card-icon"><ClipboardList size={24} style={{ color: 'var(--text-muted)' }} /></div>
                             <div className="stat-card-content">
                                 <div className="stat-card-value">{zimmetler.length}</div>
                                 <div className="stat-card-label">Toplam Zimmet</div>
                             </div>
                         </div>
                         <div className="stat-card success">
-                            <div className="stat-card-icon success">
-                                <CheckCircle size={24} />
-                            </div>
+                            <div className="stat-card-icon success"><CheckCircle size={24} /></div>
                             <div className="stat-card-content">
                                 <div className="stat-card-value">{zimmetler.filter(z => z.durum === 'Aktif').length}</div>
                                 <div className="stat-card-label">Aktif Zimmet</div>
                             </div>
                         </div>
                         <div className="stat-card info">
-                            <div className="stat-card-icon info">
-                                <RotateCcw size={24} />
-                            </div>
+                            <div className="stat-card-icon info"><Package size={24} /></div>
                             <div className="stat-card-content">
-                                <div className="stat-card-value">
-                                    {zimmetler.filter(z => z.durum === 'Iade').length}
-                                </div>
-                                <div className="stat-card-label">İade Edilmiş</div>
+                                <div className="stat-card-value">{faturaKalemleri.filter(k => !k.zimmetDurum).length}</div>
+                                <div className="stat-card-label">Zimmetli Olmayan</div>
                             </div>
                         </div>
                         <div className="stat-card error">
-                            <div className="stat-card-icon error">
-                                <AlertTriangle size={24} />
-                            </div>
+                            <div className="stat-card-icon error"><AlertTriangle size={24} /></div>
                             <div className="stat-card-content">
-                                <div className="stat-card-value">
-                                    {zimmetler.filter(z => z.durum === 'Kayip').length}
-                                </div>
+                                <div className="stat-card-value">{zimmetler.filter(z => z.durum === 'Kayip').length}</div>
                                 <div className="stat-card-label">Kayıp</div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Controls Stack */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)', width: '300px', flexShrink: 0 }}>
-                        {/* Search Bar */}
                         <div className="search-box" style={{ position: 'relative', width: '100%' }}>
                             <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                            <input
-                                type="text"
-                                placeholder="Ürün, Personel veya Bölüm ara..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="form-input"
-                                style={{ paddingLeft: '36px', width: '100%' }}
-                            />
+                            <input type="text" placeholder="Malzeme, Personel veya Bölüm ara..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="form-input" style={{ paddingLeft: '36px', width: '100%' }} />
                         </div>
-
-                        {/* Add Button */}
                         {canAdd && (
-                            <button
-                                className="btn btn-primary"
-                                onClick={() => {
-                                    setEditingId(null);
-                                    setFormData({
-                                        targetType: 'Personel',
-                                        personelId: '',
-                                        bolumId: '',
-                                        zimmetTarihi: new Date().toISOString().split('T')[0],
-                                        aciklama: '',
-                                        durum: 'Aktif'
-                                    });
-                                    setSelectedProducts([]);
-                                    setShowModal(true);
-                                }}
-                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--spacing-sm)', width: '100%' }}
-                            >
+                            <button className="btn btn-primary" onClick={() => { setShowModal(true); setFormData({ ...formData, durum: 'Aktif' }); setSelectedProducts([]); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--spacing-sm)', width: '100%' }}>
                                 <Plus size={18} /> Zimmet Ekle
                             </button>
                         )}
                     </div>
                 </div>
 
-                {/* Table */}
                 <DataTable
                     columns={columns}
-                    data={stableTableData}
+                    data={zimmetler}
                     emptyMessage="Zimmet kaydı bulunamadı."
+                    title="Zimmetler"
+                    searchable={true}
+                    onSearch={handleSearch}
+                    searchPlaceholder="Malzeme, Personel veya Bölüm ara..."
+                    onAdd={canAdd ? () => { setShowModal(true); setFormData({ ...formData, durum: 'Aktif' }); setSelectedProducts([]); } : undefined}
+                    addButtonLabel="Zimmet Ekle"
+                    extraToolbarContent={
+                        <div className="flex gap-sm items-center">
+                            <select className="form-select form-select-sm" value={durumFilter} onChange={handleDurumChange} style={{ minWidth: '120px' }}>
+                                <option value="">Tüm Durumlar</option>
+                                <option value="Aktif">Aktif</option>
+                                <option value="Iade">İade</option>
+                                <option value="Kayip">Kayıp</option>
+                            </select>
+                        </div>
+                    }
+                    onRowClick={(zimmet) => setViewingZimmet(zimmet)}
+                    rowClickable={true}
+                    serverSide={true}
+                    totalCount={totalCount}
+                    paginationParams={{ pageNumber: page, pageSize }}
+                    onPageChange={handlePageChange}
+                    isLoading={isLoading}
                 />
             </div>
 
-            {/* Main Modal */}
+            {/* Modal */}
             {showModal && (
                 <div className="modal-overlay" onClick={closeModal}>
                     <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
@@ -582,64 +578,28 @@ export default function Zimmetler() {
                         </div>
                         <form onSubmit={handleSubmit}>
                             <div className="modal-body">
-
-                                {/* Target Selection */}
-                                {/* Target Selection - Compact */}
                                 <div style={{ marginBottom: '12px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '16px', alignItems: 'center' }}>
-                                        {/* Radio Group */}
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            <label style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Hedef</label>
-                                            <div style={{ display: 'flex', gap: '12px' }}>
-                                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                                                    <input
-                                                        type="radio"
-                                                        name="targetType"
-                                                        checked={formData.targetType === 'Personel'}
-                                                        onChange={() => setFormData({ ...formData, targetType: 'Personel', bolumId: '' })}
-                                                    />
-                                                    <span>👤 Personel</span>
-                                                </label>
-                                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                                                    <input
-                                                        type="radio"
-                                                        name="targetType"
-                                                        checked={formData.targetType === 'Bolum'}
-                                                        onChange={() => setFormData({ ...formData, targetType: 'Bolum', personelId: '' })}
-                                                    />
-                                                    <span>📍 Bölüm</span>
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        {/* Dropdown */}
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            <label style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                                                {formData.targetType === 'Personel' ? 'Personel Seçiniz' : 'Bölüm Seçiniz'}
+                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Hedef Seçimi</label>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '12px', alignItems: 'center' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500 }}>
+                                                <input type="checkbox" checked={formData.isPersonelTarget} onChange={(e) => setFormData({ ...formData, isPersonelTarget: e.target.checked })} style={{ width: '16px', height: '16px' }} />
+                                                <span>👤 Personel</span>
                                             </label>
-                                            {formData.targetType === 'Personel' ? (
-                                                <select className="form-select form-select-sm" required value={formData.personelId}
-                                                    onChange={(e) => setFormData({ ...formData, personelId: e.target.value })}
-                                                    style={{ padding: '6px 12px' }}>
-                                                    <option value="">Seçiniz...</option>
-                                                    {personeller.map((p) => (
-                                                        <option key={p.id} value={p.id}>{p.tamAd}</option>
-                                                    ))}
-                                                </select>
-                                            ) : (
-                                                <select className="form-select form-select-sm" required value={formData.bolumId}
-                                                    onChange={(e) => setFormData({ ...formData, bolumId: e.target.value })}
-                                                    style={{ padding: '6px 12px' }}>
-                                                    <option value="">Seçiniz...</option>
-                                                    {flatLocations.map((loc) => (
-                                                        <option key={loc.id} value={loc.id}>
-                                                            {Array(loc.level).fill('\u00A0\u00A0').join('')}
-                                                            {loc.type === 'Bina' ? '🏢 ' : loc.type === 'Kat' ? '≡ ' : loc.type === 'Oda' ? '🚪 ' : '📍 '}
-                                                            {loc.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            )}
+                                            <select className="form-select form-select-sm" value={formData.personelId} onChange={(e) => setFormData({ ...formData, personelId: e.target.value })} disabled={!formData.isPersonelTarget} style={{ padding: '6px 12px', opacity: formData.isPersonelTarget ? 1 : 0.6 }}>
+                                                <option value="">Personel Seçiniz...</option>
+                                                {personeller.map((p) => (<option key={p.id} value={p.id}>{p.tamAd}</option>))}
+                                            </select>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '12px', alignItems: 'center' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500 }}>
+                                                <input type="checkbox" checked={formData.isBolumTarget} onChange={(e) => setFormData({ ...formData, isBolumTarget: e.target.checked })} style={{ width: '16px', height: '16px' }} />
+                                                <span>📍 Bölüm/Oda</span>
+                                            </label>
+                                            <select className="form-select form-select-sm" value={formData.bolumId} onChange={(e) => setFormData({ ...formData, bolumId: e.target.value })} disabled={!formData.isBolumTarget} style={{ padding: '6px 12px', opacity: formData.isBolumTarget ? 1 : 0.6 }}>
+                                                <option value="">Bölüm Seçiniz...</option>
+                                                {flatLocations.map((loc) => (<option key={loc.id} value={loc.id}>{loc.name}</option>))}
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -647,15 +607,11 @@ export default function Zimmetler() {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '12px', marginBottom: '12px' }}>
                                     <div>
                                         <label className="form-label" style={{ marginBottom: '4px', fontSize: '0.85rem' }}>Zimmet Tarihi</label>
-                                        <input type="date" className="form-input form-input-sm" required value={formData.zimmetTarihi}
-                                            onChange={(e) => setFormData({ ...formData, zimmetTarihi: e.target.value })}
-                                            style={{ padding: '6px 12px' }} />
+                                        <input type="date" className="form-input form-input-sm" required value={formData.zimmetTarihi} onChange={(e) => setFormData({ ...formData, zimmetTarihi: e.target.value })} style={{ padding: '6px 12px' }} />
                                     </div>
                                     <div>
                                         <label className="form-label" style={{ marginBottom: '4px', fontSize: '0.85rem' }}>Durum</label>
-                                        <select className="form-select form-select-sm" value={formData.durum}
-                                            onChange={(e) => setFormData({ ...formData, durum: e.target.value })}
-                                            style={{ padding: '6px 12px' }}>
+                                        <select className="form-select form-select-sm" value={formData.durum} onChange={(e) => setFormData({ ...formData, durum: e.target.value })} style={{ padding: '6px 12px' }}>
                                             <option value="Aktif">Aktif</option>
                                             <option value="Iade">İade</option>
                                             <option value="Kayip">Kayıp</option>
@@ -663,14 +619,10 @@ export default function Zimmetler() {
                                     </div>
                                     <div>
                                         <label className="form-label" style={{ marginBottom: '4px', fontSize: '0.85rem' }}>Açıklama</label>
-                                        <input type="text" className="form-input form-input-sm" value={formData.aciklama}
-                                            placeholder="İsteğe bağlı..."
-                                            onChange={(e) => setFormData({ ...formData, aciklama: e.target.value })}
-                                            style={{ padding: '6px 12px' }} />
+                                        <input type="text" className="form-input form-input-sm" value={formData.aciklama} placeholder="İsteğe bağlı..." onChange={(e) => setFormData({ ...formData, aciklama: e.target.value })} style={{ padding: '6px 12px' }} />
                                     </div>
                                 </div>
 
-                                {/* Product Selection Section */}
                                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginTop: '4px' }}>
                                     <div className="flex justify-between items-center" style={{ marginBottom: '8px' }}>
                                         <label className="form-label" style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>Zimmetlenecek Malzemeler</label>
@@ -680,77 +632,25 @@ export default function Zimmetler() {
                                             </button>
                                         )}
                                     </div>
-
                                     {selectedProducts.length > 0 ? (
                                         <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
                                             <table className="data-table" style={{ width: '100%', fontSize: '0.85rem' }}>
-                                                <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-primary)', zIndex: 1 }}>
-                                                    <tr>
-                                                        <th style={{ padding: '8px' }}>Malzeme Adı</th>
-                                                        <th style={{ padding: '8px' }}>Barkod / Seri No</th>
-                                                        {!editingId && <th style={{ width: '40px', padding: '8px' }}></th>}
-                                                    </tr>
-                                                </thead>
+                                                <thead><tr><th style={{ padding: '8px' }}>Malzeme Adı</th><th style={{ padding: '8px' }}>Seri No</th><th style={{ padding: '8px' }}>Barkod</th></tr></thead>
                                                 <tbody>
-                                                    {selectedProducts.map((p, idx) => {
-                                                        const isExpanded = expandedProductIndex === idx;
-                                                        return (
-                                                            <Fragment key={idx}>
-                                                                <tr
-                                                                    onClick={() => setExpandedProductIndex(isExpanded ? null : idx)}
-                                                                    style={{ cursor: 'pointer', background: isExpanded ? 'var(--bg-secondary)' : 'transparent' }}
-                                                                >
-                                                                    <td>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: '10px' }}>
-                                                                            <span style={{ fontWeight: 500 }}>{p.ad}</span>
-                                                                            <span style={{ color: 'var(--text-muted)' }}>
-                                                                                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                                                            </span>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td style={{ color: 'var(--text-muted)' }}>
-                                                                        {p.barkod || p.seriNumarasi || '-'}
-                                                                    </td>
-                                                                    {!editingId && (
-                                                                        <td>
-                                                                            <button
-                                                                                type="button"
-                                                                                className="btn btn-icon btn-danger btn-sm"
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    removeSelectedProduct(p.id);
-                                                                                }}
-                                                                            >
-                                                                                <X size={14} />
-                                                                            </button>
-                                                                        </td>
-                                                                    )}
-                                                                </tr>
-                                                                {isExpanded && (
-                                                                    <tr>
-                                                                        <td colSpan={editingId ? 2 : 3} style={{ background: 'var(--bg-tertiary)', padding: 'var(--spacing-md)' }}>
-                                                                            <div className="grid-3" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                                                                <div><strong style={{ color: 'var(--text-primary)' }}>Marka:</strong> {p.marka || '-'}</div>
-                                                                                <div><strong style={{ color: 'var(--text-primary)' }}>Model:</strong> {p.model || '-'}</div>
-                                                                                <div><strong style={{ color: 'var(--text-primary)' }}>Seri Numarası:</strong> {p.seriNumarasi || '-'}</div>
-                                                                                <div><strong style={{ color: 'var(--text-primary)' }}>Barkod Numarası:</strong> {p.barkod || '-'}</div>
-                                                                            </div>
-                                                                        </td>
-                                                                    </tr>
-                                                                )}
-                                                            </Fragment>
-                                                        );
-                                                    })}
+                                                    {selectedProducts.map((p, idx) => (
+                                                        <tr key={idx}>
+                                                            <td style={{ padding: '8px' }}>{p.malzemeAdi}</td>
+                                                            <td style={{ padding: '8px' }}>{p.seriNumarasi || '-'}</td>
+                                                            <td style={{ padding: '8px' }}>{p.barkod || '-'}</td>
+                                                        </tr>
+                                                    ))}
                                                 </tbody>
                                             </table>
                                         </div>
                                     ) : (
-                                        <div style={{ padding: 'var(--spacing-md)', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border-color)' }}>
-                                            Henüz malzeme seçilmedi.
-                                        </div>
+                                        <div style={{ padding: 'var(--spacing-md)', textAlign: 'center', color: 'var(--text-muted)' }}>Henüz malzeme seçilmedi.</div>
                                     )}
                                 </div>
-
                             </div>
                             <div className="modal-footer">
                                 <button type="button" className="btn btn-secondary" onClick={closeModal}>İptal</button>
@@ -761,104 +661,52 @@ export default function Zimmetler() {
                 </div>
             )}
 
-            {/* Product Selection Modal */}
             {showProductModal && (
                 <div className="modal-overlay" style={{ zIndex: 1001 }}>
-                    <div className="modal" style={{ maxWidth: '700px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
+                    <div className="modal" style={{ maxWidth: '750px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
                         <div className="modal-header">
-                            <h3>Malzeme Seçimi</h3>
+                            <h3>Fatura Kalemi Seçimi</h3>
                             <button className="modal-close" onClick={() => setShowProductModal(false)}><X size={20} /></button>
                         </div>
-                        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-                            {/* Search & Filter */}
-                            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="Ürün adı ara..."
-                                    value={productSearchTerm}
-                                    onChange={(e) => setProductSearchTerm(e.target.value)}
-                                    style={{ flex: 2, minWidth: '150px' }}
-                                    autoFocus
-                                />
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="Seri No / Barkod..."
-                                    value={productSerialFilter}
-                                    onChange={(e) => setProductSerialFilter(e.target.value)}
-
-                                    style={{ flex: 1, minWidth: '120px' }}
-                                />
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.9rem', userSelect: 'none' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={showAssigned}
-                                        onChange={(e) => setShowAssigned(e.target.checked)}
-                                        style={{ width: '16px', height: '16px' }}
-                                    />
-                                    <span>Zimmetli Ürünleri Göster</span>
+                        <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
+                                <input type="text" className="form-input" placeholder="Malzeme adı, seri no veya barkod ara..." value={productSearchTerm} onChange={(e) => setProductSearchTerm(e.target.value)} autoFocus style={{ flex: 1 }} />
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
+                                    <input type="checkbox" checked={showAssigned} onChange={(e) => setShowAssigned(e.target.checked)} style={{ width: '16px', height: '16px' }} />
+                                    Zimmetlileri göster
                                 </label>
                             </div>
-
-                            {/* Product List */}
-                            <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                                <table className="data-table" style={{ width: '100%' }}>
-                                    <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-primary)', zIndex: 1 }}>
-                                        <tr>
-                                            <th style={{ width: '40px' }}></th>
-                                            <th>Malzeme Adı</th>
-                                            <th>Barkod</th>
-                                            <th>Seri No</th>
-                                            <th>Stok</th>
+                            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '40px', textAlign: 'center' }}></th>
+                                        <th style={{ textAlign: 'left' }}>Malzeme Adı</th>
+                                        <th style={{ width: '20%', textAlign: 'left' }}>Seri No</th>
+                                        <th style={{ width: '20%', textAlign: 'left' }}>Barkod</th>
+                                        {showAssigned && <th style={{ width: '100px', textAlign: 'center' }}>Durum</th>}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredProducts.map(fk => (
+                                        <tr key={fk.id} onClick={() => toggleProductSelection(fk.id)} style={{ cursor: 'pointer', opacity: fk.zimmetDurum ? 0.6 : 1, borderBottom: '1px solid var(--border-color)' }}>
+                                            <td style={{ textAlign: 'center' }}><input type="checkbox" checked={selectedProductIds.has(fk.id)} readOnly style={{ width: '16px', height: '16px' }} /></td>
+                                            <td style={{ padding: '8px' }}>{fk.malzemeAdi}</td>
+                                            <td style={{ padding: '8px' }}>{fk.seriNumarasi || '-'}</td>
+                                            <td style={{ padding: '8px' }}>{fk.barkod || '-'}</td>
+                                            {showAssigned && <td style={{ textAlign: 'center' }}><span className={`badge ${fk.zimmetDurum ? 'badge-error' : 'badge-success'}`} style={{ fontSize: '0.75rem' }}>{fk.zimmetDurum ? 'Zimmetli' : 'Boşta'}</span></td>}
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredProducts.map((urun) => (
-                                            <tr
-                                                key={urun.id}
-                                                onClick={() => toggleProductSelection(urun.id)}
-                                                style={{ cursor: 'pointer', background: selectedProductIds.has(urun.id) ? 'rgba(16, 185, 129, 0.1)' : 'transparent' }}
-                                            >
-                                                <td>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedProductIds.has(urun.id)}
-                                                        onChange={() => toggleProductSelection(urun.id)}
-                                                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                                                    />
-                                                </td>
-                                                <td style={{ fontWeight: 500 }}>{urun.ad}</td>
-                                                <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{urun.barkod || '-'}</td>
-                                                <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{urun.seriNumarasi || '-'}</td>
-                                                <td>{urun.stokMiktari} {urun.birim}</td>
-                                            </tr>
-                                        ))}
-                                        {filteredProducts.length === 0 && (
-                                            <tr>
-                                                <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                                                    {(!productSearchTerm && !productSerialFilter && !productBarcodeFilter)
-                                                        ? 'Listelenecek uygun malzeme bulunamadı.'
-                                                        : 'Aradığınız kriterlere uygun malzeme bulunamadı.'}
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Selection Info */}
-                            <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                                    <strong>{selectedProductIds.size}</strong> ürün seçildi
-                                </div>
-                            </div>
+                                    ))}
+                                    {filteredProducts.length === 0 && (
+                                        <tr><td colSpan={showAssigned ? 5 : 4} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                                            {productSearchTerm.trim() ? 'Kayıt bulunamadı.' : 'Arama yapmak için lütfen yazınız...'}
+                                        </td></tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                         <div className="modal-footer">
                             <button type="button" className="btn btn-secondary" onClick={() => setShowProductModal(false)}>İptal</button>
-                            <button type="button" className="btn btn-primary" onClick={addSelectedProducts} disabled={selectedProductIds.size === 0}>
-                                Seçilenleri Ekle
-                            </button>
+                            <button type="button" className="btn btn-primary" onClick={addSelectedProducts}>Seçilenleri Ekle</button>
                         </div>
                     </div>
                 </div>
@@ -868,8 +716,8 @@ export default function Zimmetler() {
             <ConfirmDialog
                 isOpen={showSaveConfirm}
                 title="Kaydetme Onayı"
-                message={editingId ? 'Bu zimmet kaydını güncellemek istediğinize emin misiniz?' : 'Seçili ürünleri zimmetlemek istediğinize emin misiniz?'}
-                confirmText={editingId ? 'Güncelle' : 'Kaydet'}
+                message="Zimmet kaydını kaydetmek istediğinize emin misiniz?"
+                confirmText="Kaydet"
                 cancelText="İptal"
                 onConfirm={confirmSave}
                 onCancel={() => setShowSaveConfirm(false)}
@@ -880,29 +728,126 @@ export default function Zimmetler() {
             <ConfirmDialog
                 isOpen={showDeleteConfirm}
                 title="Silme Onayı"
-                message="Bu zimmet kaydını silmek istediğinize emin misiniz?"
+                message="Bu zimmet kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
                 confirmText="Sil"
                 cancelText="İptal"
                 onConfirm={confirmDelete}
-                onCancel={() => setShowDeleteConfirm(false)}
+                onCancel={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); }}
                 variant="danger"
             />
-            {/* Reassignment Confirmation */}
+
+            {/* Reassignment Confirmation Dialog */}
             <ConfirmDialog
                 isOpen={showReassignConfirm}
-                title="Zimmet Değişikliği"
-                message="Seçilen ürünlerden bazıları şu anda başka birine zimmetli (Aktif). Devam ederseniz bu ürünlerin zimmeti yeni kişiye/bölüme aktarılacaktır. Onaylıyor musunuz?"
-                confirmText="Evet, Aktar"
+                title="Yeniden Zimmetleme Onayı"
+                message="Seçilen malzemelerden bazıları zaten zimmetli. Devam ederseniz mevcut zimmetler kapatılacak ve yeniden zimmetleme yapılacak. Devam etmek istiyor musunuz?"
+                confirmText="Devam Et"
                 cancelText="İptal"
-                onConfirm={() => {
-                    setShowReassignConfirm(false);
-                    confirmSave();
-                }}
-                onCancel={() => {
-                    setShowReassignConfirm(false);
-                }}
+                onConfirm={() => { setShowReassignConfirm(false); setShowSaveConfirm(true); }}
+                onCancel={() => setShowReassignConfirm(false)}
                 variant="warning"
             />
+
+            {/* Detail Modal */}
+            {viewingZimmet && (
+                <div className="modal-overlay" onClick={() => setViewingZimmet(null)} style={{ zIndex: 1100 }}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+                        <div className="modal-header">
+                            <h2>Zimmet Detayı</h2>
+                            <button className="modal-close" onClick={() => setViewingZimmet(null)}><X size={20} /></button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ display: 'grid', gap: '24px' }}>
+
+                                {/* Ürün Bilgileri */}
+                                <div className="info-section">
+                                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Package size={18} /> Malzeme Bilgileri
+                                    </h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Malzeme Adı</label>
+                                            <div style={{ fontWeight: 500, fontSize: '1.1rem' }}>{viewingZimmet.malzemeAdi}</div>
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Durum</label>
+                                            <div><span className={`badge ${getDurumBadge(viewingZimmet.durum)}`}>{viewingZimmet.durum}</span></div>
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Seri Numarası</label>
+                                            <div style={{ fontFamily: 'monospace' }}>{viewingZimmet.seriNumarasi || '-'}</div>
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Barkod</label>
+                                            <div style={{ fontFamily: 'monospace' }}>{viewingZimmet.barkod || '-'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Zimmet Sahibi */}
+                                <div className="info-section">
+                                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <ClipboardList size={18} /> Zimmet Sahibi
+                                    </h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tip</label>
+                                            <div>{viewingZimmet.personelId ? 'Personel' : 'Bölüm / Oda'}</div>
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>İsim / Ad</label>
+                                            <div style={{ fontWeight: 500 }}>{viewingZimmet.personelAdi || viewingZimmet.bolumAdi || '-'}</div>
+                                        </div>
+                                        {viewingZimmet.personelDepartman && (
+                                            <div style={{ gridColumn: '1 / -1' }}>
+                                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Departman</label>
+                                                <div>{viewingZimmet.personelDepartman}</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Tarih ve Açıklama */}
+                                <div className="info-section">
+                                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <CheckCircle size={18} /> Detaylar
+                                    </h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Zimmet Tarihi</label>
+                                            <div>{new Date(viewingZimmet.zimmetTarihi).toLocaleDateString('tr-TR')}</div>
+                                        </div>
+                                        {viewingZimmet.iadeTarihi && (
+                                            <div>
+                                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>İade Tarihi</label>
+                                                <div>{new Date(viewingZimmet.iadeTarihi).toLocaleDateString('tr-TR')}</div>
+                                            </div>
+                                        )}
+                                        <div style={{ gridColumn: '1 / -1' }}>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Açıklama</label>
+                                            <div style={{ whiteSpace: 'pre-wrap', color: viewingZimmet.aciklama ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                                {viewingZimmet.aciklama || 'Açıklama yok.'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={() => setViewingZimmet(null)}>Kapat</button>
+                            {canEdit && (
+                                <button type="button" className="btn btn-primary" onClick={() => {
+                                    handleEdit(viewingZimmet);
+                                    setViewingZimmet(null);
+                                }}>
+                                    <Edit size={16} style={{ marginRight: '8px' }} /> Düzenle
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
+

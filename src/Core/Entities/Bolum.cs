@@ -6,7 +6,7 @@ public class Bolum : BaseEntity
 {
     public string Ad { get; set; } = string.Empty;
     public string Kod { get; set; } = string.Empty;
-    public string? Aciklama { get; set; }
+
     public BolumTip Tip { get; set; }
     
     public int? UstBolumId { get; set; }

@@ -191,7 +191,16 @@ export const getIlceler = (ilAdi: string): string[] => {
     return il ? il.ilceler.sort((a, b) => a.localeCompare(b, 'tr')) : [];
 };
 
-export const getVergiDaireleri = (ilAdi: string): string[] => {
+export const getVergiDaireleri = (ilAdi: string, ilceAdi?: string): string[] => {
     const vd = vergiDaireleri.find(v => v.il === ilAdi);
-    return vd ? vd.daireler.sort((a, b) => a.localeCompare(b, 'tr')) : [];
+    if (!vd) return [];
+
+    if (ilceAdi) {
+        const filtered = vd.daireler.filter(d =>
+            d.toLocaleLowerCase('tr').includes(ilceAdi.toLocaleLowerCase('tr'))
+        );
+        if (filtered.length > 0) return filtered.sort((a, b) => a.localeCompare(b, 'tr'));
+    }
+
+    return vd.daireler.sort((a, b) => a.localeCompare(b, 'tr'));
 };

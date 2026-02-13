@@ -77,7 +77,7 @@ export default function Loglar() {
     };
 
     const actions = ['Login', 'Logout', 'Create', 'Update', 'Delete', 'Approve', 'Reject'];
-    const entityTypes = ['Personel', 'Urun', 'Depo', 'Kategori', 'Cari', 'Fatura', 'Zimmet', 'Talep', 'User', 'Role'];
+    const entityTypes = ['Personel', 'MalzemeKalemi', 'Depo', 'Kategori', 'Cari', 'Fatura', 'Zimmet', 'Talep', 'User', 'Role'];
 
     const columns: Column<SystemLog>[] = [
         {

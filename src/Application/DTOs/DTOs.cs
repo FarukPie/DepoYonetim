@@ -1,68 +1,32 @@
 namespace DepoYonetim.Application.DTOs;
 
-// ===== DEPO DTOs =====
-public record DepoDto(
+
+
+// ===== MALZEME KALEMI DTOs =====
+public record MalzemeKalemiDto(
     int Id,
     string Ad,
-    string? Aciklama,
-    int? SorumluPersonelId,
-    string? SorumluPersonelAdi,
-    bool Aktif,
-    int UrunSayisi
-);
-
-public record DepoCreateDto(
-    string Ad,
-    string? Aciklama,
-    int? SorumluPersonelId,
-    bool Aktif
-);
-
-public record DepoUpdateDto(
-    string Ad,
-    string? Aciklama,
-    int? SorumluPersonelId,
-    bool Aktif
-);
-
-// ===== URUN DTOs =====
-public record UrunDto(
-    int Id,
-    string Ad,
-    string? Marka,
-    string? Model,
-    string? SeriNumarasi,
-    string? Barkod,
-    int KategoriId,
-    string? KategoriAdi,
-    int? DepoId,
-    string? DepoAdi,
+    string? DmbNo,
     bool EkParcaVar,
+    string? ParcaAd,
     string Birim,
-    decimal Maliyet,
-    decimal KdvOrani,
-    int GarantiSuresiAy,
-    string BozuldugundaBakimTipi,
-    int StokMiktari,
-    string Durum
+    string? Rutin,
+    string? Aciklama,
+    int State,
+    int? KategoriId,
+    string? KategoriAdi
 );
 
-public record UrunCreateDto(
+public record MalzemeKalemiCreateDto(
     string Ad,
-    string? Marka,
-    string? Model,
-    string? SeriNumarasi,
-    string? Barkod,
-    int KategoriId,
-    int? DepoId,
+    string? DmbNo,
     bool EkParcaVar,
+    string? ParcaAd,
     string Birim,
-    decimal Maliyet,
-    decimal KdvOrani,
-    int GarantiSuresiAy,
-    string BozuldugundaBakimTipi,
-    int StokMiktari,
-    string? Durum
+    string? Rutin,
+    string? Aciklama,
+    int State,
+    int? KategoriId
 );
 
 // ===== KATEGORI DTOs =====
@@ -129,14 +93,10 @@ public record CariDto(
     string? Il,
     string? Ilce,
     string? Telefon,
-    string? Fax,
     string? Email,
-    string? WebSitesi,
     string? YetkiliKisi,
     string? YetkiliTelefon,
-    string? BankaAdi,
-    string? IbanNo,
-    bool Aktif
+    string? HastaneKod
 );
 
 public record CariCreateDto(
@@ -149,13 +109,10 @@ public record CariCreateDto(
     string? Il,
     string? Ilce,
     string? Telefon,
-    string? Fax,
     string? Email,
-    string? WebSitesi,
     string? YetkiliKisi,
     string? YetkiliTelefon,
-    string? BankaAdi,
-    string? IbanNo
+    string? HastaneKod
 );
 
 // ===== FATURA DTOs =====
@@ -183,31 +140,40 @@ public record FaturaCreateDto(
 
 public record FaturaKalemiDto(
     int Id,
-    int? UrunId,
-    string UrunAdi,
+    int? MalzemeKalemiId,
+    string MalzemeAdi,
     decimal Miktar,
     decimal BirimFiyat,
     decimal IndirimOrani,
     decimal KdvOrani,
-    decimal Toplam
+    decimal Toplam,
+    bool ZimmetDurum,
+    string? SeriNumarasi,
+    string? Barkod
 );
 
 public record FaturaKalemiCreateDto(
-    int? UrunId,
-    string UrunAdi,
+    int? MalzemeKalemiId,
+    string MalzemeAdi,
     decimal Miktar,
     decimal BirimFiyat,
     decimal IndirimOrani,
-    decimal KdvOrani
+    decimal KdvOrani,
+    bool ZimmetDurum,
+    string? SeriNumarasi,
+    string? Barkod
 );
 
 // ===== ZIMMET DTOs =====
 public record ZimmetDto(
     int Id,
-    int UrunId,
-    string UrunAdi,
+    int FaturaKalemiId,
+    string MalzemeAdi,
+    string? SeriNumarasi,
+    string? Barkod,
     int? PersonelId,
     string? PersonelAdi,
+    string? PersonelDepartman,
     int? BolumId,
     string? BolumAdi,
     DateTime ZimmetTarihi,
@@ -217,7 +183,7 @@ public record ZimmetDto(
 );
 
 public record ZimmetCreateDto(
-    int UrunId,
+    int FaturaKalemiId,
     int? PersonelId,
     int? BolumId,
     DateTime ZimmetTarihi,
@@ -225,7 +191,7 @@ public record ZimmetCreateDto(
 );
 
 public record ZimmetUpdateDto(
-    int UrunId,
+    int FaturaKalemiId,
     int? PersonelId,
     int? BolumId,
     DateTime ZimmetTarihi,
@@ -241,9 +207,9 @@ public record DashboardDto(
     int BakimdakiUrunSayisi,
     int TamirBekleyenSayisi,
     List<ZimmetDto> SonZimmetler,
-    List<UrunDto> TamirBekleyenUrunler,
+    List<MalzemeKalemiDto> TamirBekleyenMalzemeler,
     List<TalepDto> OnaylananTalepler,
-    List<UrunDto> BakimdakiUrunler
+    List<MalzemeKalemiDto> BakimdakiMalzemeler
 );
 
 // ===== TALEP DTOs =====
@@ -277,14 +243,14 @@ public record BolumDto(
     string Code,
     string Type,
     int? ParentId,
-    List<BolumDto> SubLocations,
-    string? Description
+    List<BolumDto> SubLocations
+
 );
 
 public record BolumCreateDto(
     string Ad,
     string Kod,
     string Tip,
-    int? UstBolumId,
-    string? Aciklama
+    int? UstBolumId
+
 );

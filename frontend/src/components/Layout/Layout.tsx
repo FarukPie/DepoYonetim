@@ -30,7 +30,7 @@ export default function Layout({ children }: LayoutProps) {
     const [expandedMenu, setExpandedMenu] = useState<string | null>(() => {
         // Initial state: Expand 'Tanımlar' if we are currently on one of its pages
         const path = location.pathname;
-        if (['/cariler', '/urunler', '/kategoriler', '/zimmetler', '/faturalar'].some(p => path.startsWith(p))) {
+        if (['/cariler', '/malzeme-karti', '/kategoriler', '/zimmetler', '/personel-zimmet', '/faturalar', '/bolumler'].some(p => path.startsWith(p))) {
             return 'Tanımlar';
         }
         return null;
@@ -41,7 +41,8 @@ export default function Layout({ children }: LayoutProps) {
     // Auto-collapse 'Tanımlar' menu when navigating outside of it
     useEffect(() => {
         const path = location.pathname;
-        const isTanimlarPage = ['/cariler', '/urunler', '/kategoriler', '/zimmetler', '/faturalar'].some(p => path.startsWith(p));
+        const isTanimlarPage = ['/cariler', '/malzeme-karti', '/kategoriler', '/zimmetler', '/personel-zimmet', '/faturalar', '/bolumler'].some(p => path.startsWith(p));
+
 
         if (expandedMenu === 'Tanımlar' && !isTanimlarPage) {
             setExpandedMenu(null);
@@ -94,15 +95,16 @@ export default function Layout({ children }: LayoutProps) {
             icon: Warehouse,
             description: 'Sistem tanımları ve yönetimi',
             children: [
-                { path: '/cariler', label: 'Cari', pageKey: 'cariler' },
-                { path: '/kategoriler', label: 'Kategori', pageKey: 'kategoriler' },
-                { path: '/urunler', label: 'Malzeme', pageKey: 'urunler' },
+                { path: '/cariler', label: 'Cari Kartı', pageKey: 'cariler' },
+                { path: '/kategoriler', label: 'Malzeme Kategorisi', pageKey: 'kategoriler' },
+                { path: '/malzeme-karti', label: 'Malzeme Kartı', pageKey: 'malzemeler' },
                 { path: '/faturalar', label: 'Fatura', pageKey: 'faturalar' },
                 { path: '/zimmetler', label: 'Zimmet', pageKey: 'zimmetler' },
+                { path: '/personel-zimmet', label: 'Personel Zimmet', pageKey: 'zimmetler' },
+                { path: '/bolumler', label: 'Odalar / Bölümler', pageKey: 'bolumler' },
             ]
         },
         { path: '/personeller', icon: UserCog, label: 'Personel', pageKey: 'personeller', description: 'Personel listesi ve yönetimi' },
-        { path: '/bolumler', icon: FolderTree, label: 'Odalar / Bölümler', pageKey: 'bolumler', description: 'Kat ve oda yerleşimi yönetimi' },
     ];
 
     // Admin navigation items
@@ -158,6 +160,7 @@ export default function Layout({ children }: LayoutProps) {
                         <span>{item.label}</span>
 
                         <div
+                            className="nav-item-extras"
                             style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}
                             onClick={(e) => e.stopPropagation()}
                             title={item.description}
@@ -196,7 +199,7 @@ export default function Layout({ children }: LayoutProps) {
             >
                 <item.icon />
                 <span>{item.label}</span>
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="nav-item-extras" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {item.badge && item.badge > 0 && (
                         <span className="badge" style={{ fontSize: '0.75rem', padding: '2px 8px', backgroundColor: 'var(--accent-error)', color: 'white', border: '1px solid var(--accent-error)' }}>
                             {item.badge}

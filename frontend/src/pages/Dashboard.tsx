@@ -27,31 +27,36 @@ export default function Dashboard() {
         { icon: AlertTriangle, label: 'Tamir Bekleyen', value: data.tamirBekleyenSayisi, color: 'error' },
         { icon: Wrench, label: 'Bakımdaki Ürün', value: data.bakimdakiUrunSayisi, color: 'warning' },
         { icon: Users, label: 'Zimmetli Çalışan', value: data.zimmetliCalisanSayisi, color: 'primary', link: '/zimmetler' },
-        { icon: Package, label: 'Toplam Stok', value: data.toplamStok, color: 'info', link: '/urunler' },
+        { icon: Package, label: 'Toplam Stok', value: data.toplamStok, color: 'info', link: '/malzeme-karti' },
         { icon: FolderTree, label: 'Kategori Sayısı', value: data.toplamKategori, color: 'primary', link: '/kategoriler' },
     ];
 
-    const getDurumBadge = (durum: string) => {
-        switch (durum) {
-            case 'Aktif': return 'badge-success';
-            case 'Bakimda': return 'badge-warning';
-            case 'TamirBekliyor': return 'badge-error';
+    const getDurumBadge = (state: number) => {
+        switch (state) {
+            case 0: return 'badge-success'; // Aktif
+            case 1: return 'badge-warning'; // Bakimda
+            case 2: return 'badge-error';   // TamirBekliyor
+            case 3: return 'badge-neutral'; // Hurda
+            case 4: return 'badge-info';    // Zimmetli
+            case 5: return 'badge-neutral'; // Pasif
             default: return 'badge-neutral';
         }
     };
 
-    const formatDurum = (durum: string) => {
-        switch (durum) {
-            case 'TamirBekliyor': return 'Tamir Bekliyor';
-            case 'Bakimda': return 'Bakımda';
-            default: return durum;
+    const formatDurum = (state: number) => {
+        switch (state) {
+            case 0: return 'Aktif';
+            case 1: return 'Bakımda';
+            case 2: return 'Tamir Bekliyor';
+            case 3: return 'Hurda';
+            case 4: return 'Zimmetli';
+            case 5: return 'Pasif';
+            default: return 'Bilinmiyor';
         }
     };
 
     return (
         <>
-
-
             <div className="page-content">
                 {/* Stat Cards */}
                 <div className="dashboard-grid">
@@ -81,31 +86,31 @@ export default function Dashboard() {
                         <div className="dashboard-section-header">
                             <h2 className="dashboard-section-title">
                                 <AlertTriangle size={20} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--accent-error)' }} />
-                                Tamir Bekleyen Ürünler
+                                Tamir Bekleyen Malzemeler
                             </h2>
                         </div>
                         <div className="table-container">
                             <table className="table">
                                 <thead>
                                     <tr>
-                                        <th>Ürün</th>
-                                        <th>Depo</th>
+                                        <th>Malzeme</th>
+                                        <th>DMB No</th>
                                         <th>Durum</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {data.tamirBekleyenUrunler.length > 0 ? (
-                                        data.tamirBekleyenUrunler.map((urun) => (
-                                            <tr key={urun.id}>
-                                                <td style={{ color: 'var(--text-primary)' }}>{urun.ad}</td>
-                                                <td>{urun.depoAdi}</td>
-                                                <td><span className={`badge ${getDurumBadge(urun.durum)}`}>{formatDurum(urun.durum)}</span></td>
+                                    {data.tamirBekleyenMalzemeler.length > 0 ? (
+                                        data.tamirBekleyenMalzemeler.map((m) => (
+                                            <tr key={m.id}>
+                                                <td style={{ color: 'var(--text-primary)' }}>{m.ad}</td>
+                                                <td>{m.dmbNo || '-'}</td>
+                                                <td><span className={`badge ${getDurumBadge(m.state)}`}>{formatDurum(m.state)}</span></td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
                                             <td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                                                Tamir bekleyen ürün bulunmuyor
+                                                Tamir bekleyen malzeme bulunmuyor
                                             </td>
                                         </tr>
                                     )}
@@ -119,31 +124,31 @@ export default function Dashboard() {
                         <div className="dashboard-section-header">
                             <h2 className="dashboard-section-title">
                                 <Wrench size={20} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--accent-warning)' }} />
-                                Bakımdaki Ürünler
+                                Bakımdaki Malzemeler
                             </h2>
                         </div>
                         <div className="table-container">
                             <table className="table">
                                 <thead>
                                     <tr>
-                                        <th>Ürün</th>
-                                        <th>Depo</th>
+                                        <th>Malzeme</th>
+                                        <th>DMB No</th>
                                         <th>Durum</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {data.bakimdakiUrunler && data.bakimdakiUrunler.length > 0 ? (
-                                        data.bakimdakiUrunler.map((urun) => (
-                                            <tr key={urun.id}>
-                                                <td style={{ color: 'var(--text-primary)' }}>{urun.ad}</td>
-                                                <td>{urun.depoAdi}</td>
-                                                <td><span className={`badge ${getDurumBadge(urun.durum)}`}>{formatDurum(urun.durum)}</span></td>
+                                    {data.bakimdakiMalzemeler && data.bakimdakiMalzemeler.length > 0 ? (
+                                        data.bakimdakiMalzemeler.map((m) => (
+                                            <tr key={m.id}>
+                                                <td style={{ color: 'var(--text-primary)' }}>{m.ad}</td>
+                                                <td>{m.dmbNo || '-'}</td>
+                                                <td><span className={`badge ${getDurumBadge(m.state)}`}>{formatDurum(m.state)}</span></td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
                                             <td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                                                Bakımda ürün bulunmuyor
+                                                Bakımda malzeme bulunmuyor
                                             </td>
                                         </tr>
                                     )}
@@ -172,7 +177,7 @@ export default function Dashboard() {
                                 <tbody>
                                     {data.sonZimmetler.map((zimmet) => (
                                         <tr key={zimmet.id}>
-                                            <td style={{ color: 'var(--text-primary)' }}>{zimmet.urunAdi}</td>
+                                            <td style={{ color: 'var(--text-primary)' }}>{zimmet.malzemeAdi}</td>
                                             <td>{zimmet.personelAdi}</td>
                                             <td>{new Date(zimmet.zimmetTarihi).toLocaleDateString('tr-TR')}</td>
                                         </tr>

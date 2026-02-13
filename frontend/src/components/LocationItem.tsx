@@ -26,10 +26,7 @@ export default function LocationItem({ location, onEdit, onDelete, canEdit, canD
         }
     };
 
-    const getTypeLabel = (type: string) => {
-        // Could map to TR friendly names if needed, but Enum matches TR currently
-        return type;
-    };
+
 
     return (
         <div>
@@ -54,9 +51,7 @@ export default function LocationItem({ location, onEdit, onDelete, canEdit, canD
                     <div className="flex flex-col">
                         <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
                             {location.name}
-                            <span className="text-xs text-muted ml-xs font-normal bg-gray-100 px-xs py-xxs rounded">
-                                {getTypeLabel(location.type)}
-                            </span>
+
                         </div>
                         {location.description && (
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>

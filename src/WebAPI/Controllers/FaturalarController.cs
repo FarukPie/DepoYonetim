@@ -37,6 +37,13 @@ public class FaturalarController : ControllerBase
         return Ok(faturalar);
     }
 
+    [HttpGet("paged")]
+    public async Task<ActionResult<PagedResultDto<FaturaDto>>> GetPaged([FromQuery] PaginationRequest request)
+    {
+        var result = await _faturaService.GetPagedAsync(request);
+        return Ok(result);
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<FaturaDto>> GetById(int id)
     {

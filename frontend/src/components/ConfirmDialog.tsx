@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
     onConfirm: () => void;
     onCancel: () => void;
     variant?: 'danger' | 'warning' | 'info';
+    zIndex?: number;
 }
 
 export default function ConfirmDialog({
@@ -19,7 +20,8 @@ export default function ConfirmDialog({
     cancelText = 'İptal',
     onConfirm,
     onCancel,
-    variant = 'info'
+    variant = 'info',
+    zIndex
 }: ConfirmDialogProps) {
     if (!isOpen) return null;
 
@@ -30,7 +32,7 @@ export default function ConfirmDialog({
     };
 
     return (
-        <div className="modal-overlay" onClick={onCancel}>
+        <div className="modal-overlay" onClick={onCancel} style={{ zIndex }}>
             <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
                 <div className="modal-header">
                     <h2>{title}</h2>

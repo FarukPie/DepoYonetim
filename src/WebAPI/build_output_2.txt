@@ -1,0 +1,14 @@
+  Geri yüklenecek projeler belirleniyor...
+  Geri yükleme için tüm projeler güncel.
+  DepoYonetim.Core -> C:\Users\omer.atak\Desktop\DepoYonetim\src\Core\bin\Debug\net8.0\DepoYonetim.Core.dll
+C:\Users\omer.atak\Desktop\DepoYonetim\src\Application\Services\DashboardService.cs(90,46): error CS7036: 'MalzemeKalemiDto.MalzemeKalemiDto(int, string, string?, bool, string?, string, string?, string?, int, int?, string?)'nin gerekli 'KategoriId' parametresine karşılık gelen herhangi bir argüman yok [C:\Users\omer.atak\Desktop\DepoYonetim\src\Application\DepoYonetim.Application.csproj]
+C:\Users\omer.atak\Desktop\DepoYonetim\src\Application\Services\DashboardService.cs(102,49): error CS7036: 'MalzemeKalemiDto.MalzemeKalemiDto(int, string, string?, bool, string?, string, string?, string?, int, int?, string?)'nin gerekli 'KategoriId' parametresine karşılık gelen herhangi bir argüman yok [C:\Users\omer.atak\Desktop\DepoYonetim\src\Application\DepoYonetim.Application.csproj]
+
+Oluşturma BAŞARISIZ OLDU.
+
+C:\Users\omer.atak\Desktop\DepoYonetim\src\Application\Services\DashboardService.cs(90,46): error CS7036: 'MalzemeKalemiDto.MalzemeKalemiDto(int, string, string?, bool, string?, string, string?, string?, int, int?, string?)'nin gerekli 'KategoriId' parametresine karşılık gelen herhangi bir argüman yok [C:\Users\omer.atak\Desktop\DepoYonetim\src\Application\DepoYonetim.Application.csproj]
+C:\Users\omer.atak\Desktop\DepoYonetim\src\Application\Services\DashboardService.cs(102,49): error CS7036: 'MalzemeKalemiDto.MalzemeKalemiDto(int, string, string?, bool, string?, string, string?, string?, int, int?, string?)'nin gerekli 'KategoriId' parametresine karşılık gelen herhangi bir argüman yok [C:\Users\omer.atak\Desktop\DepoYonetim\src\Application\DepoYonetim.Application.csproj]
+    0 Uyarı
+    2 Hata
+
+Geçen Süre 00:00:01.78

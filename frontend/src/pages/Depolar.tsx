@@ -290,7 +290,7 @@ export default function Depolar() {
                 cancelText="İptal"
                 onConfirm={confirmDelete}
                 onCancel={() => setShowDeleteConfirm(false)}
-                variant="danger"
+                variant="info"
             />
         </>
     );

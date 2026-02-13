@@ -29,8 +29,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Repositories
 builder.Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
-builder.Services.AddScoped<IDepoRepository, DepoRepository>();
-builder.Services.AddScoped<IUrunRepository, UrunRepository>();
+
+builder.Services.AddScoped<IMalzemeKalemiRepository, MalzemeKalemiRepository>();
 builder.Services.AddScoped<IKategoriRepository, KategoriRepository>();
 builder.Services.AddScoped<IPersonelRepository, PersonelRepository>();
 builder.Services.AddScoped<ICariRepository, CariRepository>();
@@ -39,8 +39,8 @@ builder.Services.AddScoped<IZimmetRepository, ZimmetRepository>();
 builder.Services.AddScoped<IBolumRepository, BolumRepository>();
 
 // Services
-builder.Services.AddScoped<IDepoService, DepoService>();
-builder.Services.AddScoped<IUrunService, UrunService>();
+
+builder.Services.AddScoped<IMalzemeKalemiService, MalzemeKalemiService>();
 builder.Services.AddScoped<IKategoriService, KategoriService>();
 builder.Services.AddScoped<IBolumService, BolumService>();
 builder.Services.AddScoped<IPersonelService, PersonelService>();
@@ -49,6 +49,7 @@ builder.Services.AddScoped<IFaturaService, FaturaService>();
 builder.Services.AddScoped<IZimmetService, ZimmetService>();
 builder.Services.AddScoped<ITalepService, TalepService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ISystemLogService, SystemLogService>();
 builder.Services.AddScoped<ICurrentUserService, DepoYonetim.WebAPI.Services.CurrentUserService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
@@ -74,6 +75,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
+app.UseMiddleware<DepoYonetim.WebAPI.Middlewares.ExceptionHandlingMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 

@@ -28,6 +28,13 @@ public class PersonellerController : ControllerBase
         return Ok(personeller);
     }
 
+    [HttpGet("paged")]
+    public async Task<ActionResult<PagedResultDto<PersonelDto>>> GetPaged([FromQuery] PaginationRequest request)
+    {
+        var result = await _personelService.GetPagedAsync(request);
+        return Ok(result);
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<PersonelDto>> GetById(int id)
     {

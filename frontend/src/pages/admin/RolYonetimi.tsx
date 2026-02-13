@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Shield, Plus, Edit2, Trash2, X, Check } from 'lucide-react';
 import { roleService } from '../../services/api';
 import { Role, RoleCreate, PageOption, PermissionOption } from '../../types';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 export default function RolYonetimi() {
     const [roles, setRoles] = useState<Role[]>([]);
@@ -33,6 +34,11 @@ export default function RolYonetimi() {
         entityPermissions: {}
     });
 
+    // Confirmation dialog states
+    const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+
     useEffect(() => {
         loadData();
     }, []);
@@ -48,6 +54,10 @@ export default function RolYonetimi() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setShowSaveConfirm(true);
+    };
+
+    const confirmSave = async () => {
         try {
             if (editingRole) {
                 await roleService.update(editingRole.id, formData);
@@ -56,6 +66,7 @@ export default function RolYonetimi() {
             }
             loadData();
             closeModal();
+            setShowSaveConfirm(false);
         } catch (error) {
             console.error('Kaydetme hatası:', error);
             alert('Kaydetme sırasında bir hata oluştu.');
@@ -73,14 +84,21 @@ export default function RolYonetimi() {
         setShowModal(true);
     };
 
-    const handleDelete = async (id: number) => {
+    const handleDelete = (id: number) => {
+        setDeleteTargetId(id);
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTargetId) return;
         try {
-            if (window.confirm('Bu rolü silmek istediğinize emin misiniz?')) {
-                await roleService.delete(id);
-                loadData();
-            }
+            await roleService.delete(deleteTargetId);
+            loadData();
         } catch (error) {
             alert(error instanceof Error ? error.message : 'Bir hata oluştu');
+        } finally {
+            setShowDeleteConfirm(false);
+            setDeleteTargetId(null);
         }
     };
 
@@ -297,6 +315,30 @@ export default function RolYonetimi() {
                     </div>
                 </div>
             )}
+
+            {/* Save Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={showSaveConfirm}
+                title="Kaydetme Onayı"
+                message={editingRole ? 'Bu rolü güncellemek istediğinize emin misiniz?' : 'Yeni rol eklemek istediğinize emin misiniz?'}
+                confirmText={editingRole ? 'Güncelle' : 'Kaydet'}
+                cancelText="İptal"
+                onConfirm={confirmSave}
+                onCancel={() => setShowSaveConfirm(false)}
+                variant="info"
+            />
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                title="Silme Onayı"
+                message="Bu rolü silmek istediğinize emin misiniz?"
+                confirmText="Sil"
+                cancelText="İptal"
+                onConfirm={confirmDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+                variant="info"
+            />
         </>
     );
 }

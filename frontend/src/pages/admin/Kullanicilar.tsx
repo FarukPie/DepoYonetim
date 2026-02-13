@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Check, X } from 'lucide-react';
 import { userService, roleService } from '../../services/api';
 import { User, Role, UserCreate } from '../../types';
 import { DataTable, Column } from '../../components/shared/DataTable';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 export default function Kullanicilar() {
     const [users, setUsers] = useState<User[]>([]);
@@ -17,6 +18,11 @@ export default function Kullanicilar() {
         fullName: '',
         roleId: 2
     });
+
+    // Confirmation dialog states
+    const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
     useEffect(() => {
         loadData();
@@ -51,6 +57,10 @@ export default function Kullanicilar() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setShowSaveConfirm(true);
+    };
+
+    const confirmSave = async () => {
         try {
             if (editingUser) {
                 await userService.update(editingUser.id, {
@@ -64,6 +74,7 @@ export default function Kullanicilar() {
             }
             loadData();
             closeModal();
+            setShowSaveConfirm(false);
         } catch (error) {
             console.error('Kaydetme hatası:', error);
             alert('Kaydetme sırasında bir hata oluştu.');
@@ -82,17 +93,25 @@ export default function Kullanicilar() {
         setShowModal(true);
     };
 
-    const handleDelete = async (id: number) => {
-        if (window.confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?')) {
-            try {
-                await userService.delete(id);
-                loadData();
-            } catch (error) {
-                console.error('Silme hatası:', error);
-                alert('Silme sırasında bir hata oluştu.');
-            }
-        }
+    const handleDelete = (id: number) => {
+        setDeleteTargetId(id);
+        setShowDeleteConfirm(true);
     };
+
+    const confirmDelete = async () => {
+        if (!deleteTargetId) return;
+        try {
+            await userService.delete(deleteTargetId);
+            loadData();
+        } catch (error) {
+            console.error('Silme hatası:', error);
+            alert('Silme sırasında bir hata oluştu.');
+        } finally {
+            setShowDeleteConfirm(false);
+            setDeleteTargetId(null);
+        }
+    }
+
 
     const handleToggleActive = async (user: User) => {
         try {
@@ -263,6 +282,29 @@ export default function Kullanicilar() {
                     </div>
                 </div>
             )}
+            {/* Save Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={showSaveConfirm}
+                title="Kaydetme Onayı"
+                message={editingUser ? 'Bu kullanıcıyı güncellemek istediğinize emin misiniz?' : 'Yeni kullanıcı eklemek istediğinize emin misiniz?'}
+                confirmText={editingUser ? 'Güncelle' : 'Kaydet'}
+                cancelText="İptal"
+                onConfirm={confirmSave}
+                onCancel={() => setShowSaveConfirm(false)}
+                variant="info"
+            />
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                title="Silme Onayı"
+                message="Bu kullanıcıyı silmek istediğinize emin misiniz?"
+                confirmText="Sil"
+                cancelText="İptal"
+                onConfirm={confirmDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+                variant="info"
+            />
         </>
     );
 }

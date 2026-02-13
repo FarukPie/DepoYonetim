@@ -11,9 +11,17 @@ public class KategoriRepository : EfRepository<Kategori>, IKategoriRepository
     {
     }
 
+    public override async Task<IEnumerable<Kategori>> GetAllAsync()
+    {
+        return await _context.Kategoriler
+            .Include(k => k.Malzemeler)
+            .ToListAsync();
+    }
+
     public async Task<IEnumerable<Kategori>> GetAnaKategorilerAsync()
     {
         return await _context.Kategoriler
+            .Include(k => k.Malzemeler)
             .Where(k => k.UstKategoriId == null)
             .ToListAsync();
     }
@@ -21,6 +29,7 @@ public class KategoriRepository : EfRepository<Kategori>, IKategoriRepository
     public async Task<IEnumerable<Kategori>> GetAltKategorilerAsync(int ustKategoriId)
     {
         return await _context.Kategoriler
+            .Include(k => k.Malzemeler)
             .Where(k => k.UstKategoriId == ustKategoriId)
             .ToListAsync();
     }

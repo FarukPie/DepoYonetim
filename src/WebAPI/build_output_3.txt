@@ -1,0 +1,12 @@
+  Geri yüklenecek projeler belirleniyor...
+  Geri yükleme için tüm projeler güncel.
+  DepoYonetim.Core -> C:\Users\omer.atak\Desktop\DepoYonetim\src\Core\bin\Debug\net8.0\DepoYonetim.Core.dll
+  DepoYonetim.Application -> C:\Users\omer.atak\Desktop\DepoYonetim\src\Application\bin\Debug\net8.0\DepoYonetim.Application.dll
+  DepoYonetim.Infrastructure -> C:\Users\omer.atak\Desktop\DepoYonetim\src\Infrastructure\bin\Debug\net8.0\DepoYonetim.Infrastructure.dll
+  DepoYonetim.WebAPI -> C:\Users\omer.atak\Desktop\DepoYonetim\src\WebAPI\bin\Debug\net8.0\DepoYonetim.WebAPI.dll
+
+Oluşturma başarılı oldu.
+    0 Uyarı
+    0 Hata
+
+Geçen Süre 00:00:04.62

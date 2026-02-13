@@ -34,6 +34,7 @@ export default function Kategoriler() {
     const [editFormData, setEditFormData] = useState({ ad: '', aciklama: '', ustKategoriId: '' });
 
     // Confirmation dialog states
+    const [showSaveConfirm, setShowSaveConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
@@ -267,6 +268,11 @@ export default function Kategoriler() {
         setWizardStep('selectParent');
     };
 
+    const handleSaveWizardClick = () => {
+        if (wizardCategories.length === 0) return;
+        setShowSaveConfirm(true);
+    };
+
     // Save all categories to DB
     const handleSaveAll = async () => {
         if (wizardCategories.length === 0) return;
@@ -326,9 +332,13 @@ export default function Kategoriler() {
         }
     };
 
-    // Handle edit form submit
-    const handleEditSubmit = async (e: React.FormEvent) => {
+    const handleEditFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setShowSaveConfirm(true);
+    };
+
+    // Handle edit form submit
+    const handleEditSubmit = async () => {
         if (!editingCategory) return;
 
         try {
@@ -504,7 +514,7 @@ export default function Kategoriler() {
                             type="button"
                             className="btn btn-success"
                             style={{ width: '100%', marginTop: 'var(--spacing-md)' }}
-                            onClick={handleSaveAll}
+                            onClick={handleSaveWizardClick}
                             disabled={isSaving}
                         >
                             {isSaving ? '⏳ Kaydediliyor...' : `✅ Kaydet (${wizardCategories.length})`}
@@ -584,7 +594,7 @@ export default function Kategoriler() {
                                 type="button"
                                 className="btn btn-success"
                                 style={{ flex: 1 }}
-                                onClick={handleSaveAll}
+                                onClick={handleSaveWizardClick}
                                 disabled={isSaving}
                             >
                                 {isSaving ? '⏳' : `✅ Kaydet (${wizardCategories.length})`}
@@ -636,7 +646,7 @@ export default function Kategoriler() {
                                 type="button"
                                 className="btn btn-success"
                                 style={{ width: '100%', marginTop: 'var(--spacing-xs)' }}
-                                onClick={handleSaveAll}
+                                onClick={handleSaveWizardClick}
                                 disabled={isSaving}
                             >
                                 {isSaving ? '⏳ Kaydediliyor...' : `✅ Tamamla (${wizardCategories.length})`}
@@ -652,7 +662,7 @@ export default function Kategoriler() {
 
     // ===== RENDER EDIT FORM =====
     const renderEditForm = () => (
-        <form onSubmit={handleEditSubmit}>
+        <form onSubmit={handleEditFormSubmit}>
             <div className="modal-body">
                 <div className="form-group">
                     <label className="form-label">Kategori Adı</label>
@@ -729,7 +739,25 @@ export default function Kategoriler() {
                 cancelText="İptal"
                 onConfirm={confirmDelete}
                 onCancel={() => setShowDeleteConfirm(false)}
-                variant="danger"
+                variant="info"
+            />
+
+            <ConfirmDialog
+                isOpen={showSaveConfirm}
+                title="Kaydetme Onayı"
+                message={editingCategory ? 'Bu kategoriyi güncellemek istediğinize emin misiniz?' : `Eklenen ${wizardCategories.length} kategoriyi kaydetmek istediğinize emin misiniz?`}
+                confirmText={editingCategory ? 'Güncelle' : 'Kaydet'}
+                cancelText="İptal"
+                onConfirm={() => {
+                    setShowSaveConfirm(false);
+                    if (editingCategory) {
+                        handleEditSubmit();
+                    } else {
+                        handleSaveAll();
+                    }
+                }}
+                onCancel={() => setShowSaveConfirm(false)}
+                variant="info"
             />
         </>
     );
